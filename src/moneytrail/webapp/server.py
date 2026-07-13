@@ -73,10 +73,16 @@ def create_app(db_path: Path, rules_path: Path) -> Flask:
             )
         ]
         months = [r[0] for r in c.execute("SELECT DISTINCT substr(date, 1, 7) FROM tx ORDER BY 1")]
-        categories = sorted(
-            {r[0] for r in c.execute("SELECT DISTINCT category FROM tx WHERE category IS NOT NULL")}
-            | {rule.category for rule in (cat.load_rules(rules_path) if rules_path.exists() else []) if rule.category}
-        )
+        # Ordenadas por frecuencia de uso: la UI muestra las primeras como
+        # chips de un click y el resto queda en el autocompletar.
+        usage = {
+            r[0]: r[1]
+            for r in c.execute("SELECT category, COUNT(*) FROM tx WHERE category IS NOT NULL GROUP BY category")
+        }
+        for rule in cat.load_rules(rules_path) if rules_path.exists() else []:
+            if rule.category:
+                usage.setdefault(rule.category, 0)
+        categories = sorted(usage, key=lambda name: (-usage[name], name))
         unmatched = [
             dict(r)
             for r in c.execute(
@@ -115,10 +121,7 @@ def create_app(db_path: Path, rules_path: Path) -> Flask:
         updated = cat.apply_rules(conn(), cat.load_rules(rules_path))
         return jsonify({"updated": updated})
 
-    @app.get("/report")
-    def report_view() -> Response:
-        from ..report import render_report  # diferido: carga plotly
-
+    def _range_args() -> tuple[str | None, str | None, Decimal]:
         date_from = request.args.get("from") or None
         date_to = request.args.get("to") or None
         if date_from and len(date_from) == 7:
@@ -126,7 +129,88 @@ def create_app(db_path: Path, rules_path: Path) -> Flask:
         if date_to and len(date_to) == 7:
             year, month = int(date_to[:4]), int(date_to[5:7])
             date_to += f"-{calendar.monthrange(year, month)[1]}"
-        usd_rate = Decimal(request.args.get("usd_rate") or "1500")
+        return date_from, date_to, Decimal(request.args.get("usd_rate") or "1500")
+
+    @app.get("/api/sankey")
+    def api_sankey():
+        from ..report.colors import expense_top_colors, node_color
+        from ..report.sankey import build_sankey
+
+        date_from, date_to, usd_rate = _range_args()
+        data = build_sankey(conn(), date_from, date_to, usd_rate)
+
+        order = ["income", "internal", "opening", "account", "expense_top", "expense_sub", "savings"]
+        labels = sorted(data.node_roles, key=lambda n: order.index(data.node_roles[n]))
+        index = {label: i for i, label in enumerate(labels)}
+        tops_light = expense_top_colors(data, dark=False)
+        tops_dark = expense_top_colors(data, dark=True)
+        nodes = [
+            {
+                "label": label,
+                "role": data.node_roles[label],
+                "colorLight": node_color(data, label, tops_light, dark=False),
+                "colorDark": node_color(data, label, tops_dark, dark=True),
+                "drillable": bool(data.node_txs.get(label)),
+            }
+            for label in labels
+        ]
+        links = [
+            {"source": index[src], "target": index[dst], "value": float(value)}
+            for (src, dst), value in sorted(data.flows.items(), key=lambda kv: -kv[1])
+        ]
+        return jsonify(
+            {
+                "nodes": nodes,
+                "links": links,
+                "totals": {
+                    "income": float(data.total_income),
+                    "expense": float(data.total_expense),
+                    "savings": float(data.total_income - data.total_expense),
+                },
+                "usd_converted": float(data.usd_converted),
+                "usd_rate": float(usd_rate),
+            }
+        )
+
+    @app.get("/api/drill")
+    def api_drill():
+        from ..report.sankey import build_sankey
+
+        node = request.args.get("node") or ""
+        date_from, date_to, usd_rate = _range_args()
+        c = conn()
+        data = build_sankey(c, date_from, date_to, usd_rate)
+        if node not in data.node_roles:
+            return jsonify({"error": f"Nodo desconocido: {node}"}), 404
+        tx_ids = data.node_txs.get(node, [])
+        txs = []
+        if tx_ids:
+            placeholders = ",".join("?" * len(tx_ids))
+            rows = c.execute(
+                f"""SELECT tx.id, tx.date, tx.description, tx.counterparty, tx.amount,
+                           tx.currency, tx.category, tx.kind, account.label AS account_label
+                    FROM tx JOIN account ON account.id = tx.account_id
+                    WHERE tx.id IN ({placeholders})
+                    ORDER BY tx.date, tx.id""",
+                tx_ids,
+            ).fetchall()
+            txs = [dict(r) for r in rows]
+        return jsonify({"node": node, "role": data.node_roles[node], "transactions": txs})
+
+    @app.get("/static/plotly.js")
+    def plotly_js() -> Response:
+        # Servida local para que la app funcione offline, sin CDN.
+        from plotly.offline import get_plotlyjs
+
+        resp = Response(get_plotlyjs(), mimetype="application/javascript")
+        resp.cache_control.max_age = 86400
+        return resp
+
+    @app.get("/report")
+    def report_view() -> Response:
+        from ..report import render_report  # diferido: carga plotly
+
+        date_from, date_to, usd_rate = _range_args()
         return Response(render_report(conn(), date_from, date_to, usd_rate), mimetype="text/html")
 
     return app

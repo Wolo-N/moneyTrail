@@ -72,3 +72,46 @@ def test_index_served(client):
     res = client.get("/")
     assert res.status_code == 200
     assert "Soltá los PDFs".encode() in res.data
+
+
+def test_sankey_json(client, tmp_path):
+    _seed(tmp_path)
+    data = client.get("/api/sankey?from=2026-04&to=2026-04&usd_rate=1000").get_json()
+    labels = [n["label"] for n in data["nodes"]]
+    assert "Sueldo" in labels and "Galicia Caja de Ahorro" in labels
+    assert data["links"], "debería haber flujos"
+    assert data["totals"]["income"] == 142006.67
+    # Cada nodo trae ambos colores y si es drilleable
+    node = next(n for n in data["nodes"] if n["label"] == "Sueldo")
+    assert node["colorLight"].startswith("#") and node["colorDark"].startswith("#")
+    assert node["drillable"] is True
+    # Los índices de los links apuntan dentro del rango de nodos
+    assert all(0 <= l["source"] < len(labels) and 0 <= l["target"] < len(labels) for l in data["links"])
+
+
+def test_drill_category_node(client, tmp_path):
+    _seed(tmp_path)
+    data = client.get("/api/drill?node=Transporte&from=2026-04&to=2026-04").get_json()
+    assert data["role"] == "expense_top"
+    assert len(data["transactions"]) == 1
+    tx = data["transactions"][0]
+    assert tx["counterparty"] == "PLAYAS SUBTERRANEAS"
+    assert tx["category"] == "Transporte/Estacionamiento"
+
+
+def test_drill_account_node_has_all_movements(client, tmp_path):
+    _seed(tmp_path)
+    data = client.get("/api/drill?node=Galicia%20Caja%20de%20Ahorro").get_json()
+    assert data["role"] == "account"
+    assert len(data["transactions"]) == 6  # todos los movimientos de la cuenta
+
+
+def test_drill_unknown_node(client, tmp_path):
+    _seed(tmp_path)
+    assert client.get("/api/drill?node=NoExiste").status_code == 404
+
+
+def test_plotly_js_served(client):
+    res = client.get("/static/plotly.js")
+    assert res.status_code == 200
+    assert len(res.data) > 1000000  # bundle completo de plotly

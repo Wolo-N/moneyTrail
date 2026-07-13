@@ -38,6 +38,9 @@ class SankeyData:
     flows: dict[tuple[str, str], Decimal] = field(default_factory=dict)
     # etiqueta de nodo -> rol ('income'|'account'|'expense_top'|'expense_sub'|'internal'|'savings'|'opening')
     node_roles: dict[str, str] = field(default_factory=dict)
+    # etiqueta de nodo -> ids de tx que lo componen (para drill-through);
+    # los nodos sintéticos de balanceo (Ahorro/Saldo inicial) quedan vacíos
+    node_txs: dict[str, list[int]] = field(default_factory=dict)
     total_income: Decimal = Decimal(0)
     total_expense: Decimal = Decimal(0)
     usd_converted: Decimal = Decimal(0)  # total USD convertido (para transparentar el TC usado)
@@ -62,12 +65,17 @@ def build_sankey(
     account_by_txid = {t["id"]: t["account_label"] for t in txs}
     data = SankeyData()
 
-    def add(src: str, dst: str, value: Decimal, src_role: str, dst_role: str) -> None:
+    def add(src: str, dst: str, value: Decimal, src_role: str, dst_role: str, tx_id: int | None = None) -> None:
         if value <= 0:
             return
         data.flows[(src, dst)] = data.flows.get((src, dst), Decimal(0)) + value
         data.node_roles.setdefault(src, src_role)
         data.node_roles.setdefault(dst, dst_role)
+        if tx_id is not None:
+            for node in (src, dst):
+                bucket = data.node_txs.setdefault(node, [])
+                if tx_id not in bucket:
+                    bucket.append(tx_id)
 
     for t in txs:
         value = db.amount(t)
@@ -80,28 +88,28 @@ def build_sankey(
         if kind == str(Kind.INCOME):
             top, sub = _split_category(t["category"])
             source = sub or top  # 'Ingresos/Sueldo' → nodo 'Sueldo'
-            add(source, account, value, "income", "account")
+            add(source, account, value, "income", "account", t["id"])
             data.total_income += value
         elif kind in EXPENSE_KINDS and value < 0:
             top, sub = _split_category(t["category"])
-            add(account, top, -value, "account", "expense_top")
+            add(account, top, -value, "account", "expense_top", t["id"])
             if sub:
-                add(top, f"{top} · {sub}", -value, "expense_top", "expense_sub")
+                add(top, f"{top} · {sub}", -value, "expense_top", "expense_sub", t["id"])
             data.total_expense += -value
         elif kind == str(Kind.TRANSFER_INTERNAL):
             if value < 0:
                 dest = account_by_txid.get(links.get(t["id"], -1), NODE_OTHER_OWN)
-                add(account, dest, -value, "account", "account" if dest != NODE_OTHER_OWN else "internal")
+                add(account, dest, -value, "account", "account" if dest != NODE_OTHER_OWN else "internal", t["id"])
             elif t["id"] not in linked_in_ids:
-                add(NODE_FROM_OTHER, account, value, "internal", "account")
+                add(NODE_FROM_OTHER, account, value, "internal", "account", t["id"])
         elif kind == str(Kind.CARD_PAYMENT):
             if value < 0:
                 dest = account_by_txid.get(links.get(t["id"], -1), NODE_CARD_NO_DETAIL)
-                add(account, dest, -value, "account", "account" if dest != NODE_CARD_NO_DETAIL else "internal")
+                add(account, dest, -value, "account", "account" if dest != NODE_CARD_NO_DETAIL else "internal", t["id"])
             elif t["id"] not in linked_in_ids:
-                add(NODE_CARD_PAY_UNKNOWN, account, value, "internal", "account")
+                add(NODE_CARD_PAY_UNKNOWN, account, value, "internal", "account", t["id"])
         elif value > 0:  # positivo con kind de gasto: devolución/ajuste, entra a la cuenta
-            add("Devoluciones y ajustes", account, value, "income", "account")
+            add("Devoluciones y ajustes", account, value, "income", "account", t["id"])
 
     _balance_accounts(data)
     return data

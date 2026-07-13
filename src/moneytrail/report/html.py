@@ -14,18 +14,8 @@ from ..categorize import uncategorized_summary
 from ..models import Kind
 from .sankey import SankeyData, build_sankey, category_totals
 
-# Paleta categórica validada (dataviz reference palette, modo claro).
-# Roles fijos: el color sigue al tipo de nodo, no a su posición.
-ROLE_COLORS = {
-    "income": "#008300",  # slot 4 (green)
-    "account": "#2a78d6",  # slot 1 (blue)
-    "savings": "#1baf7a",  # slot 2 (aqua)
-    "opening": "#898781",  # muted ink
-    "internal": "#898781",
-}
-# Categorías de gasto: slots categóricos restantes en orden fijo; el sobrante va a gris.
-EXPENSE_SLOTS = ["#eda100", "#4a3aa7", "#e34948", "#e87ba4", "#eb6834", "#0d366b", "#104281"]
-MUTED = "#898781"
+from .colors import expense_top_colors, node_color
+
 SURFACE = "#fcfcfb"
 INK = "#0b0b0b"
 INK_2 = "#52514e"
@@ -43,23 +33,8 @@ def _rgba(hex_color: str, alpha: float) -> str:
 
 
 def _node_colors(data: SankeyData, labels: list[str]) -> list[str]:
-    expense_tops = sorted(
-        {n for n, role in data.node_roles.items() if role == "expense_top"},
-        key=lambda n: -sum(v for (s, d), v in data.flows.items() if d == n),
-    )
-    top_color = {
-        top: (EXPENSE_SLOTS[i] if i < len(EXPENSE_SLOTS) else MUTED) for i, top in enumerate(expense_tops)
-    }
-    colors = []
-    for label in labels:
-        role = data.node_roles[label]
-        if role == "expense_top":
-            colors.append(top_color[label])
-        elif role == "expense_sub":
-            colors.append(top_color.get(label.split(" · ")[0], MUTED))
-        else:
-            colors.append(ROLE_COLORS[role])
-    return colors
+    top_colors = expense_top_colors(data)
+    return [node_color(data, label, top_colors) for label in labels]
 
 
 def sankey_figure(data: SankeyData) -> go.Figure:
