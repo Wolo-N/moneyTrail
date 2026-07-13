@@ -1,0 +1,20 @@
+# Datos personales: PDFs bancarios y base de datos — nunca commitear
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+dist/
+build/
+
+# Reportes generados
+report*.html
+
+# Editor
+.idea/
+.vscode/
+.DS_Store
