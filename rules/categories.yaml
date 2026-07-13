@@ -34,7 +34,7 @@
   category: Comida/Delivery
 - match: "UBER|CABIFY|DIDI "
   category: Transporte/Apps
-- match: "PLAYAS SUBTERRANEAS|ESTACIONAMIENTO"
+- match: "PLAYAS SUBTERRANEAS|ESTACIONAMIENTO|PARKING"
   category: Transporte/Estacionamiento
 - match: "DISNEY|NETFLIX|SPOTIFY|HBO|AUDIBLE|ANTHROPIC|OPENAI|YOUTUBE PREMIUM"
   category: Suscripciones
