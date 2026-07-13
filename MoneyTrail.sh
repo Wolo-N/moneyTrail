@@ -51,9 +51,27 @@ PYTHON="$(find_python)" || {
 if [ ! -x .venv/bin/moneytrail ]; then
     rm -rf .venv
     echo "Primera vez: preparando moneyTrail con $PYTHON (1-2 minutos)..."
-    if ! "$PYTHON" -m venv .venv; then
+
+    # Creamos el venv SIN pip y lo instalamos nosotros a continuación: cuando
+    # 'python -m venv' hace este paso solo, si ensurepip falla oculta el error
+    # real detrás de un mensaje genérico ('returned non-zero exit status 1',
+    # sin más detalle). Separándolo en dos pasos vemos la causa de verdad.
+    if ! "$PYTHON" -m venv --without-pip .venv; then
         echo "No se pudo crear el entorno virtual."
         pause_and_exit
+    fi
+    if ! .venv/bin/python3 -m ensurepip --upgrade --default-pip; then
+        echo ""
+        echo "ensurepip falló (ver el error de arriba). Probando instalar pip de otra forma..."
+        if ! curl -fsSL https://bootstrap.pypa.io/get-pip.py -o /tmp/moneytrail-get-pip.py; then
+            echo "No se pudo descargar pip. Revisá tu conexión a internet e intentá de nuevo."
+            pause_and_exit
+        fi
+        if ! .venv/bin/python3 /tmp/moneytrail-get-pip.py --quiet; then
+            echo "Tampoco se pudo instalar pip así. Mandá el error de arriba para diagnosticarlo."
+            pause_and_exit
+        fi
+        rm -f /tmp/moneytrail-get-pip.py
     fi
     .venv/bin/pip install --quiet --upgrade pip
     if ! .venv/bin/pip install --quiet -e .; then
