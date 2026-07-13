@@ -23,7 +23,7 @@ def client(tmp_path):
 
 def _seed(tmp_path):
     conn = dbmod.connect(tmp_path / "data" / "moneytrail.db")
-    import_parsed(conn, GaliciaCajaAhorroParser().parse(GALICIA_PAGES), "h1", "g.pdf")
+    import_parsed(conn, GaliciaCajaAhorroParser().parse(GALICIA_PAGES)[0], "h1", "g.pdf")
     categorize.apply_rules(conn, categorize.load_rules(RULES_SRC))  # como hace /api/import
     conn.close()
 

@@ -15,7 +15,7 @@ def test_detect():
 
 
 def test_parse_header():
-    stmt = GaliciaCajaAhorroParser().parse(PAGES)
+    stmt = GaliciaCajaAhorroParser().parse(PAGES)[0]
     assert stmt.period_start == date(2026, 4, 1)
     assert stmt.period_end == date(2026, 4, 30)
     assert stmt.opening_balance == Decimal("100000.00")
@@ -24,7 +24,7 @@ def test_parse_header():
 
 
 def test_parse_movements():
-    stmt = GaliciaCajaAhorroParser().parse(PAGES)
+    stmt = GaliciaCajaAhorroParser().parse(PAGES)[0]
     assert len(stmt.movements) == 6
 
     reintegro = stmt.movements[0]

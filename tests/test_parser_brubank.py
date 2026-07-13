@@ -15,7 +15,7 @@ def test_detect():
 
 
 def test_consumptions():
-    stmt = BrubankTarjetaParser().parse(PAGES)
+    stmt = BrubankTarjetaParser().parse(PAGES)[0]
     consumos = [m for m in stmt.movements if m.kind == Kind.EXPENSE]
     assert len(consumos) == 3
     rappi = consumos[0]
@@ -31,7 +31,7 @@ def test_consumptions():
 
 
 def test_fees_taxes_and_payments():
-    stmt = BrubankTarjetaParser().parse(PAGES)
+    stmt = BrubankTarjetaParser().parse(PAGES)[0]
     fees = [m for m in stmt.movements if m.kind == Kind.FEE]
     assert len(fees) == 1 and fees[0].amount == Decimal("-1000.00")
 
@@ -47,7 +47,7 @@ def test_fees_taxes_and_payments():
 
 
 def test_period_from_movements():
-    stmt = BrubankTarjetaParser().parse(PAGES)
+    stmt = BrubankTarjetaParser().parse(PAGES)[0]
     assert stmt.period_start == date(2026, 6, 1)
     assert stmt.period_end == date(2026, 6, 16)
 

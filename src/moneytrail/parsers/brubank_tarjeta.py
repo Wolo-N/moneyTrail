@@ -34,7 +34,7 @@ class BrubankTarjetaParser:
         text = "\n".join(pages)
         return "Ciclo de facturación" in text and "Brubank" in text
 
-    def parse(self, pages: list[str]) -> ParsedStatement:
+    def parse(self, pages: list[str]) -> list[ParsedStatement]:
         lines = [ln.strip() for page in pages for ln in page.splitlines() if ln.strip()]
 
         movements: list[Movement] = []
@@ -127,14 +127,16 @@ class BrubankTarjetaParser:
         self._validate(movements, card_expected, tax_total, payments_expected)
 
         dates = [mv.date for mv in movements]
-        return ParsedStatement(
-            account=AccountInfo(
-                bank="Brubank", product="tarjeta_credito", currency="ARS", label="Brubank Tarjeta de Crédito"
-            ),
-            period_start=min(dates),
-            period_end=max(dates),
-            movements=movements,
-        )
+        return [
+            ParsedStatement(
+                account=AccountInfo(
+                    bank="Brubank", product="tarjeta_credito", currency="ARS", label="Brubank Tarjeta de Crédito"
+                ),
+                period_start=min(dates),
+                period_end=max(dates),
+                movements=movements,
+            )
+        ]
 
     @staticmethod
     def _validate(

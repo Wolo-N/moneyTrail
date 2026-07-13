@@ -16,14 +16,14 @@ RULES = categorize.load_rules(Path(__file__).parent.parent / "rules" / "categori
 
 
 def _import_fixtures(conn):
-    galicia = GaliciaCajaAhorroParser().parse(GALICIA_PAGES)
-    brubank = BrubankTarjetaParser().parse(BRUBANK_PAGES)
+    galicia = GaliciaCajaAhorroParser().parse(GALICIA_PAGES)[0]
+    brubank = BrubankTarjetaParser().parse(BRUBANK_PAGES)[0]
     import_parsed(conn, galicia, "hash-galicia", "galicia.pdf")
     import_parsed(conn, brubank, "hash-brubank", "brubank.pdf")
 
 
 def test_reimport_is_noop(conn):
-    galicia = GaliciaCajaAhorroParser().parse(GALICIA_PAGES)
+    galicia = GaliciaCajaAhorroParser().parse(GALICIA_PAGES)[0]
     new1, _ = import_parsed(conn, galicia, "hash-1", "galicia.pdf")
     assert new1 == 6
     # Mismo contenido con otro hash de archivo (p. ej. extracto consolidado que

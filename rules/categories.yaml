@@ -6,9 +6,9 @@
 #           income | expense | transfer_internal | card_payment | tax | fee | interest | fx
 
 # --- Flujos internos (no son ingreso ni gasto) ---
-- match: "TRANSF\\. CTAS PROPIAS"
+- match: "TRANSF\\. CTAS PROPIAS|cuenta tuya"
   kind: transfer_internal
-- match: "PAGO TARJETA"
+- match: "PAGO (DE )?TARJETA"
   kind: card_payment
 
 # --- Ingresos ---

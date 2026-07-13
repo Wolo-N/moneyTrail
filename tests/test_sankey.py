@@ -13,8 +13,8 @@ RULES = categorize.load_rules(Path(__file__).parent.parent / "rules" / "categori
 
 
 def _setup(conn):
-    import_parsed(conn, GaliciaCajaAhorroParser().parse(GALICIA_PAGES), "h1", "g.pdf")
-    import_parsed(conn, BrubankTarjetaParser().parse(BRUBANK_PAGES), "h2", "b.pdf")
+    import_parsed(conn, GaliciaCajaAhorroParser().parse(GALICIA_PAGES)[0], "h1", "g.pdf")
+    import_parsed(conn, BrubankTarjetaParser().parse(BRUBANK_PAGES)[0], "h2", "b.pdf")
     categorize.apply_rules(conn, RULES)
     reconcile.reconcile(conn)
 

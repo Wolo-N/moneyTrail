@@ -43,7 +43,7 @@ class GaliciaCajaAhorroParser:
     def detect(self, pages: list[str]) -> bool:
         return bool(pages) and "Resumen de Caja de Ahorro en Pesos" in pages[0]
 
-    def parse(self, pages: list[str]) -> ParsedStatement:
+    def parse(self, pages: list[str]) -> list[ParsedStatement]:
         lines = [ln.strip() for page in pages for ln in page.splitlines() if ln.strip()]
 
         period_start, period_end = self._parse_period(lines)
@@ -89,16 +89,18 @@ class GaliciaCajaAhorroParser:
 
         movements = self._validate(movements, opening, closing, totals)
 
-        return ParsedStatement(
-            account=AccountInfo(
-                bank="Banco Galicia", product="caja_ahorro", currency="ARS", label="Galicia Caja de Ahorro"
-            ),
-            period_start=period_start,
-            period_end=period_end,
-            opening_balance=opening,
-            closing_balance=closing,
-            movements=movements,
-        )
+        return [
+            ParsedStatement(
+                account=AccountInfo(
+                    bank="Banco Galicia", product="caja_ahorro", currency="ARS", label="Galicia Caja de Ahorro"
+                ),
+                period_start=period_start,
+                period_end=period_end,
+                opening_balance=opening,
+                closing_balance=closing,
+                movements=movements,
+            )
+        ]
 
     @staticmethod
     def _parse_period(lines: list[str]) -> tuple[date, date]:

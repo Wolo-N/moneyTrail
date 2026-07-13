@@ -48,16 +48,31 @@ def import_parsed(
 def import_file(conn: sqlite3.Connection, pdf_path: Path) -> ImportResult:
     source = pdf_path.name
     file_hash = hashlib.sha256(pdf_path.read_bytes()).hexdigest()
-    if db.statement_exists(conn, file_hash):
-        return ImportResult(source, "skipped_duplicate")
     try:
         pages = extract_pages(pdf_path)
         parser = find_parser(pages)
         if parser is None:
             return ImportResult(source, "no_parser")
-        stmt = parser.parse(pages)
-        new, dup = import_parsed(conn, stmt, file_hash, source)
-        return ImportResult(source, "imported", parser.name, new, dup)
+        stmts = parser.parse(pages)
+
+        # Un PDF casi siempre trae una sola cuenta (el hash del archivo ya la
+        # identifica), pero el resumen de cuenta de Brubank trae varias
+        # subcuentas en un mismo archivo: cada una necesita su propia clave de
+        # dedupe derivada, o la segunda pisaría el UNIQUE de la primera.
+        multi = len(stmts) > 1
+        total_new = total_dup = 0
+        any_new = False
+        for i, stmt in enumerate(stmts):
+            stmt_hash = f"{file_hash}:{i}" if multi else file_hash
+            if db.statement_exists(conn, stmt_hash):
+                continue
+            any_new = True
+            new, dup = import_parsed(conn, stmt, stmt_hash, source)
+            total_new += new
+            total_dup += dup
+        if not any_new:
+            return ImportResult(source, "skipped_duplicate")
+        return ImportResult(source, "imported", parser.name, total_new, total_dup)
     except Exception as exc:  # noqa: BLE001 — un PDF roto no debe frenar el lote
         conn.rollback()
         return ImportResult(source, "error", error=str(exc))
