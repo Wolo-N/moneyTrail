@@ -232,40 +232,40 @@ moneytrail report --from 2026-04 --to 2026-06 --open   # genera y abre report.ht
 Cada fase termina con algo usable y testeado. Estimaciones en sesiones de trabajo (~2-4 h).
 
 ### Fase 0 — Scaffolding (0.5 sesión)
-- [ ] `pyproject.toml` (deps: pdfplumber, pydantic, typer, plotly, pytest), `src/` layout, `.gitignore` con `data/`.
-- [ ] `models.py` + `db.py` con schema y migración inicial.
-- [ ] CLI esqueleto con `import` / `status` vacíos.
+- [x] `pyproject.toml` (deps: pdfplumber, pydantic, typer, plotly, pytest), `src/` layout, `.gitignore` con `data/`.
+- [x] `models.py` + `db.py` con schema y migración inicial.
+- [x] CLI esqueleto con `import` / `status` vacíos.
 
 ### Fase 1 — Parsers (2 sesiones) ← el corazón del proyecto
-- [ ] Interfaz `StatementParser` (`detect(text) -> bool`, `parse(pdf) -> ParsedStatement`) + registro de parsers.
-- [ ] Parser **Galicia caja de ahorro**: encabezado (período, saldos), movimientos con descripción multi-línea, montos AR.
-- [ ] Parser **Brubank tarjeta**: secciones por tarjeta, consumos ARS/USD, comisiones, impuestos, pagos.
-- [ ] Validación saldo inicial + Σ movimientos = saldo final (Galicia) y subtotales por tarjeta (Brubank).
-- [ ] Golden tests con fixtures anonimizados de ambos formatos.
+- [x] Interfaz `StatementParser` (`detect(text) -> bool`, `parse(pdf) -> ParsedStatement`) + registro de parsers.
+- [x] Parser **Galicia caja de ahorro**: encabezado (período, saldos), movimientos con descripción multi-línea, montos AR.
+- [x] Parser **Brubank tarjeta**: secciones por tarjeta, consumos ARS/USD, comisiones, impuestos, pagos.
+- [x] Validación saldo inicial + Σ movimientos = saldo final (Galicia) y subtotales por tarjeta (Brubank).
+- [x] Golden tests con fixtures anonimizados de ambos formatos.
 - **Criterio de salida**: `moneytrail import` deja los dos PDFs reales en la DB sin errores de validación.
 
 ### Fase 2 — Deduplicación e idempotencia (0.5 sesión)
-- [ ] `dedupe_hash` por movimiento; re-import del mismo PDF = 0 filas nuevas.
-- [ ] Solapamiento de períodos (extractos consolidados) manejado por el mismo hash.
-- [ ] `moneytrail status` con períodos cubiertos y detección de huecos por cuenta.
+- [x] `dedupe_hash` por movimiento; re-import del mismo PDF = 0 filas nuevas.
+- [x] Solapamiento de períodos (extractos consolidados) manejado por el mismo hash.
+- [x] `moneytrail status` con períodos cubiertos y detección de huecos por cuenta.
 
 ### Fase 3 — Conciliación (1 sesión)
-- [ ] Matching `TRANSF. CTAS PROPIAS` ↔ acreditación en la otra cuenta (monto exacto, fecha ±3 días).
-- [ ] Matching `PAGO TARJETA` ↔ sección `Pagos` del resumen de tarjeta del período.
-- [ ] Tabla `transfer_link` con confianza; los no matcheados quedan visibles en `status`.
-- [ ] Tests de los dos casos con montos reales de los fixtures.
+- [x] Matching `TRANSF. CTAS PROPIAS` ↔ acreditación en la otra cuenta (monto exacto, fecha ±3 días).
+- [x] Matching `PAGO TARJETA` ↔ sección `Pagos` del resumen de tarjeta del período.
+- [x] Tabla `transfer_link` con confianza; los no matcheados quedan visibles en `status`.
+- [x] Tests de los dos casos con montos reales de los fixtures.
 
 ### Fase 4 — Categorización (1 sesión)
-- [ ] Motor de reglas YAML (regex ordenadas, primera gana, `kind_override`).
-- [ ] Set inicial de reglas basado en los comercios reales vistos (Rappi, Uber, Disney+, Audible, suscripciones, impuestos, sueldo, reintegros).
-- [ ] `moneytrail categorize --review`: lista no categorizados agrupados por descripción con frecuencia y monto acumulado.
+- [x] Motor de reglas YAML (regex ordenadas, primera gana, `kind_override`).
+- [x] Set inicial de reglas basado en los comercios reales vistos (Rappi, Uber, Disney+, Audible, suscripciones, impuestos, sueldo, reintegros).
+- [x] `moneytrail categorize --review`: lista no categorizados agrupados por descripción con frecuencia y monto acumulado.
 - **Criterio de salida**: ≥90 % del monto de los PDFs de ejemplo categorizado.
 
 ### Fase 5 — Reporte Sankey (1.5 sesiones)
-- [ ] Agregación de flujos: fuentes → cuentas → categorías (con reemplazo de pagos de tarjeta por sus consumos y flujo "Ahorro" para el excedente).
-- [ ] Conversión USD→ARS configurable por período.
-- [ ] `report.html`: Sankey Plotly + tabla top gastos + no categorizados + totales del período.
-- [ ] Filtros `--from/--to` por mes.
+- [x] Agregación de flujos: fuentes → cuentas → categorías (con reemplazo de pagos de tarjeta por sus consumos y flujo "Ahorro" para el excedente).
+- [x] Conversión USD→ARS configurable por período.
+- [x] `report.html`: Sankey Plotly + tabla top gastos + no categorizados + totales del período.
+- [x] Filtros `--from/--to` por mes.
 - **Criterio de salida**: el diagrama responde "¿a dónde se fue la plata este mes?" de un vistazo.
 
 ### Fase 6 — Extensiones (backlog, según necesidad)

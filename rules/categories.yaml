@@ -1,0 +1,54 @@
+# Reglas de categorización de moneyTrail.
+# Se evalúan en orden y la primera que matchea gana: poné las específicas arriba.
+# match:    regex case-insensitive sobre descripción + detalle + contraparte
+# category: "Top/Sub" o "Top" (opcional)
+# kind:     override del tipo de movimiento (opcional):
+#           income | expense | transfer_internal | card_payment | tax | fee | interest | fx
+
+# --- Flujos internos (no son ingreso ni gasto) ---
+- match: "TRANSF\\. CTAS PROPIAS"
+  kind: transfer_internal
+- match: "PAGO TARJETA"
+  kind: card_payment
+
+# --- Ingresos ---
+- match: "SUELDOS|HABERES"
+  category: Ingresos/Sueldo
+  kind: income
+- match: "SNP PAGO A PROVEEDORES"
+  category: Ingresos/Reintegros
+  kind: income
+- match: "INTERES CAPITALIZADO"
+  category: Ingresos/Intereses
+  kind: income
+
+# --- Ahorro / cambio de moneda ---
+- match: "Compra venta de dolares|Compra Moneda Extran"
+  category: Ahorro/Compra de dólares
+  kind: fx
+
+# --- Gastos (específicos primero) ---
+- match: "PROPINA\\*RAPPI|RAPPI PRO"
+  category: Comida/Delivery
+- match: "RAPPI|PEDIDOSYA"
+  category: Comida/Delivery
+- match: "UBER|CABIFY|DIDI "
+  category: Transporte/Apps
+- match: "PLAYAS SUBTERRANEAS|ESTACIONAMIENTO"
+  category: Transporte/Estacionamiento
+- match: "DISNEY|NETFLIX|SPOTIFY|HBO|AUDIBLE|ANTHROPIC|OPENAI|YOUTUBE PREMIUM"
+  category: Suscripciones
+- match: "SOUTHERNMEAT|COTO|CARREFOUR|JUMBO|DISCO |DIA TIENDA"
+  category: Comida/Supermercado
+- match: "THE ANGELS"
+  category: Comida/Restaurantes
+- match: "LENTESFX|FARMACITY|FARMACIA|OPTICA"
+  category: Salud
+- match: "MERCADO LIBRE|MERCADOLIBRE|MELI\\*"
+  category: Compras/Mercado Libre
+- match: "TRANSFERENCIA A TERCEROS"
+  category: Transferencias a terceros
+
+# --- Impuestos y comisiones (genéricas al final) ---
+- match: "IVA|IMPUESTO|INGRESOS BRUTOS|SELLOS|RG 4240|COMISI[OÓ]N|LEY 25413|LEY 25\\.413"
+  category: Impuestos y comisiones
