@@ -8,6 +8,22 @@ pause_and_exit() {
     exit 1
 }
 
+# Python arma sus scripts internos (pip, ensurepip) con un '#!/ruta/al/python'
+# en la primera línea; si esa ruta tiene un espacio, la ejecución se rompe y
+# 'ensurepip'/pip fallan con errores crípticos. Lo detectamos antes de perder
+# 2 minutos armando un venv que va a fallar igual.
+case "$(pwd)" in
+    *" "*)
+        echo "Esta carpeta tiene un espacio en el nombre de alguna subcarpeta:"
+        echo "  $(pwd)"
+        echo ""
+        echo "Python se rompe con espacios en la ruta al crear el entorno virtual."
+        echo "Solución: renombrá o movés la carpeta del proyecto a una ruta sin espacios,"
+        echo "por ejemplo ~/moneyTrail, y volvé a correr este archivo."
+        pause_and_exit
+        ;;
+esac
+
 find_python() {
     for candidate in python3.13 python3.12 python3.11 python3 python; do
         command -v "$candidate" >/dev/null 2>&1 || continue
