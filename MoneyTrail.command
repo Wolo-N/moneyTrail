@@ -64,8 +64,29 @@ if [ ! -x .venv/bin/moneytrail ]; then
         echo "No se pudo crear el entorno virtual."
         pause_and_exit
     fi
-    if ! .venv/bin/python3 -m ensurepip --upgrade --default-pip; then
+    if ! .venv/bin/python3 -m ensurepip --upgrade --default-pip > /tmp/moneytrail-ensurepip.log 2>&1; then
+        cat /tmp/moneytrail-ensurepip.log
         echo ""
+        if grep -qi "pyexpat" /tmp/moneytrail-ensurepip.log && grep -qi "Symbol not found" /tmp/moneytrail-ensurepip.log; then
+            # Bug conocido: el Python de Homebrew queda con 'pyexpat' compilado
+            # contra una libexpat que no tiene el símbolo que pip necesita para
+            # importarse. No se arregla reinstalando pip: hay que resolverlo a
+            # nivel de esa instalación de Python, así que no vale la pena
+            # intentar el fallback de get-pip.py (va a fallar por lo mismo).
+            echo "Esto es un bug conocido del Python de Homebrew en tu Mac: el módulo 'pyexpat'"
+            echo "quedó compilado contra una libexpat que no tiene el símbolo que pip necesita"
+            echo "para poder importarse. No es algo que se arregle reinstalando pip."
+            echo ""
+            echo "La forma más simple de resolverlo: instalá Python 3.13 (estable) desde"
+            echo "https://www.python.org/downloads/ — es independiente de Homebrew, y moneyTrail"
+            echo "lo va a preferir automáticamente la próxima vez, sin tocar nada más."
+            echo ""
+            echo "Si preferís seguir con el de Homebrew, probá en la terminal:"
+            echo "  brew reinstall expat && brew reinstall python@3.14"
+            rm -f /tmp/moneytrail-ensurepip.log
+            pause_and_exit
+        fi
+        rm -f /tmp/moneytrail-ensurepip.log
         echo "ensurepip falló (ver el error de arriba). Probando instalar pip de otra forma..."
         if ! curl -fsSL https://bootstrap.pypa.io/get-pip.py -o /tmp/moneytrail-get-pip.py; then
             echo "No se pudo descargar pip. Revisá tu conexión a internet e intentá de nuevo."
