@@ -1,7 +1,8 @@
-"""CLI de moneyTrail: import / status / reconcile / categorize / report."""
+"""CLI de moneyTrail: import / status / reconcile / categorize / report / gui."""
 
 from __future__ import annotations
 
+import calendar
 import webbrowser
 from decimal import Decimal
 from pathlib import Path
@@ -108,6 +109,19 @@ def categorize(
 
 
 @app.command()
+def gui(
+    db: Path = DB_OPT,
+    rules: Path = RULES_OPT,
+    port: int = typer.Option(0, help="Puerto local (0 = elegir uno libre)"),
+    no_browser: bool = typer.Option(False, "--no-browser", help="No abrir el navegador automáticamente"),
+):
+    """Abre la app de escritorio: drag & drop de PDFs, categorización guiada y reporte."""
+    from .webapp.server import run_server  # diferido: carga flask
+
+    run_server(db, rules, port, open_browser=not no_browser)
+
+
+@app.command()
 def report(
     db: Path = DB_OPT,
     date_from: str = typer.Option(None, "--from", help="Fecha desde (YYYY-MM-DD o YYYY-MM)"),
@@ -122,7 +136,8 @@ def report(
     if date_from and len(date_from) == 7:
         date_from += "-01"
     if date_to and len(date_to) == 7:
-        date_to += "-31"
+        year, month = int(date_to[:4]), int(date_to[5:7])
+        date_to += f"-{calendar.monthrange(year, month)[1]}"
     conn = dbmod.connect(db)
     out.write_text(render_report(conn, date_from, date_to, Decimal(str(usd_rate))))
     typer.echo(f"Reporte generado: {out}")

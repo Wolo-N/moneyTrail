@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>moneyTrail</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #f9f9f7; color: #0b0b0b;
+         font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.5rem; margin: 0; }
+  h2 { font-size: 1.05rem; margin: 0 0 4px; }
+  .sub { color: #52514e; margin: 4px 0 24px; }
+  .step { background: #fcfcfb; border: 1px solid rgba(11,11,11,0.10); border-radius: 10px;
+          padding: 18px 20px; margin-bottom: 16px; }
+  .step .hint { color: #52514e; font-size: 0.88rem; margin: 0 0 12px; }
+  .badge { display: inline-flex; align-items: center; justify-content: center;
+           width: 22px; height: 22px; border-radius: 50%; background: #2a78d6; color: #fff;
+           font-size: 0.8rem; font-weight: 700; margin-right: 8px; }
+
+  #dropzone { border: 2px dashed #c3c2b7; border-radius: 10px; padding: 36px 16px;
+              text-align: center; color: #52514e; cursor: pointer; transition: all .15s; }
+  #dropzone.over { border-color: #2a78d6; background: #eef4fc; color: #2a78d6; }
+  #dropzone strong { color: #0b0b0b; }
+  #dropzone.over strong { color: #2a78d6; }
+
+  ul.results { list-style: none; padding: 0; margin: 12px 0 0; }
+  ul.results li { padding: 6px 10px; border-radius: 6px; margin-bottom: 4px; font-size: 0.9rem; }
+  li.ok { background: #e9f5e9; } li.dup { background: #f0efec; }
+  li.err { background: #fbecec; } li.warn { background: #fdf3e0; }
+
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #e1e0d9;
+           font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+  th { color: #52514e; font-weight: 600; font-size: 0.78rem; }
+  tr:last-child td { border-bottom: none; }
+  .tbl-wrap { overflow-x: auto; }
+
+  input[type="text"], input[type="number"], select {
+    font: inherit; padding: 6px 10px; border: 1px solid #c3c2b7; border-radius: 6px;
+    background: #fff; min-width: 0; }
+  button { font: inherit; padding: 7px 14px; border: none; border-radius: 6px;
+           background: #2a78d6; color: #fff; cursor: pointer; }
+  button:hover { background: #256abf; }
+  button:disabled { background: #c3c2b7; cursor: default; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .controls label { font-size: 0.85rem; color: #52514e; display: flex; gap: 6px; align-items: center; }
+  iframe { width: 100%; height: 900px; border: 1px solid rgba(11,11,11,0.10); border-radius: 8px;
+           background: #fff; }
+  .empty { color: #898781; font-size: 0.9rem; }
+  .pill { font-size: 0.78rem; background: #f0efec; border-radius: 999px; padding: 2px 10px;
+          color: #52514e; margin-left: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>moneyTrail</h1>
+  <p class="sub">Rastreá a dónde va la plata: soltá tus PDFs y mirá el flujo.</p>
+
+  <section class="step">
+    <h2><span class="badge">1</span>Importá tus extractos</h2>
+    <p class="hint">Arrastrá acá los PDFs de tus resúmenes bancarios y de tarjeta (o hacé click para elegirlos).
+       Podés soltar los mismos archivos más de una vez: no se duplica nada.</p>
+    <div id="dropzone">
+      <strong>Soltá los PDFs acá</strong><br>o hacé click para buscarlos
+    </div>
+    <input type="file" id="fileinput" accept=".pdf" multiple hidden>
+    <ul class="results" id="import-results"></ul>
+  </section>
+
+  <section class="step">
+    <h2><span class="badge">2</span>Tus cuentas</h2>
+    <p class="hint">Qué hay cargado y qué período cubre cada cuenta.</p>
+    <div id="accounts" class="tbl-wrap"><p class="empty">Todavía no importaste nada.</p></div>
+  </section>
+
+  <section class="step">
+    <h2><span class="badge">3</span>Categorizá lo que falta <span class="pill" id="uncat-count"></span></h2>
+    <p class="hint">Estos gastos no matchearon ninguna regla. Escribí una categoría (o elegí una existente)
+       y se crea la regla: la próxima vez se categoriza solo.</p>
+    <div id="uncategorized"><p class="empty">Nada pendiente ✓</p></div>
+  </section>
+
+  <section class="step">
+    <h2><span class="badge">4</span>Mirá a dónde se fue la plata</h2>
+    <div class="controls">
+      <label>Desde <select id="from"></select></label>
+      <label>Hasta <select id="to"></select></label>
+      <label>USD→ARS <input type="number" id="usd" value="1500" step="5" style="width:90px"></label>
+      <button id="gen">Generar reporte</button>
+    </div>
+    <div id="report-box"><p class="empty">Importá al menos un extracto y generá el reporte.</p></div>
+  </section>
+
+  <section class="step" id="unmatched-box" hidden>
+    <h2>Flujos internos sin conciliar</h2>
+    <p class="hint">Transferencias entre tus cuentas o pagos de tarjeta cuyo otro extremo todavía no está
+       importado. Cuando importes el extracto que falta, se enlazan solos.</p>
+    <div id="unmatched" class="tbl-wrap"></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (n) => Number(n).toLocaleString("es-AR", { maximumFractionDigits: 0 });
+
+// --- Paso 1: drag & drop ---
+const dz = $("dropzone"), fi = $("fileinput");
+dz.addEventListener("click", () => fi.click());
+["dragover", "dragenter"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove("over"); }));
+dz.addEventListener("drop", (e) => importFiles(e.dataTransfer.files));
+fi.addEventListener("change", () => { importFiles(fi.files); fi.value = ""; });
+
+async function importFiles(files) {
+  if (!files.length) return;
+  const ul = $("import-results");
+  ul.innerHTML = '<li class="dup">Importando…</li>';
+  const fd = new FormData();
+  for (const f of files) fd.append("files", f);
+  try {
+    const res = await (await fetch("/api/import", { method: "POST", body: fd })).json();
+    ul.innerHTML = "";
+    for (const r of res.results) {
+      const li = document.createElement("li");
+      if (r.status === "imported") { li.className = "ok"; li.textContent = `✓ ${r.source}: ${r.new_txs} movimientos nuevos (${r.parser})`; }
+      else if (r.status === "skipped_duplicate") { li.className = "dup"; li.textContent = `= ${r.source}: ya estaba importado`; }
+      else if (r.status === "no_parser") { li.className = "warn"; li.textContent = `? ${r.source}: formato no soportado todavía`; }
+      else { li.className = "err"; li.textContent = `✗ ${r.source}: ${r.error}`; }
+      ul.appendChild(li);
+    }
+    if (res.new_links) {
+      const li = document.createElement("li");
+      li.className = "ok";
+      li.textContent = `⇄ ${res.new_links} flujos internos conciliados entre cuentas`;
+      ul.appendChild(li);
+    }
+  } catch (err) {
+    ul.innerHTML = `<li class="err">✗ Error importando: ${esc(err)}</li>`;
+  }
+  await refresh();
+}
+
+// --- Estado (pasos 2 y 3) ---
+async function refresh() {
+  const st = await (await fetch("/api/status")).json();
+
+  if (st.accounts.length) {
+    $("accounts").innerHTML = "<table><thead><tr><th>Cuenta</th><th>Extractos</th><th>Movimientos</th><th>Período</th></tr></thead><tbody>"
+      + st.accounts.map((a) => `<tr><td>${esc(a.label)}</td><td>${a.stmts}</td><td>${a.txs}</td><td>${esc(a.d0)} → ${esc(a.d1)}</td></tr>`).join("")
+      + "</tbody></table>";
+  }
+
+  const un = st.uncategorized;
+  $("uncat-count").textContent = un.length ? `${un.length} pendientes` : "";
+  if (un.length) {
+    $("uncategorized").innerHTML = "<table><thead><tr><th>Descripción</th><th>Contraparte</th><th>Movs.</th><th>Total aprox.</th><th>Categoría</th><th></th></tr></thead><tbody>"
+      + un.map((u, i) => `<tr>
+          <td>${esc(u.description)}</td><td>${esc(u.counterparty) || "—"}</td>
+          <td>${u.n}</td><td>${fmt(u.approx_total)} ${esc(u.currency)}</td>
+          <td><input type="text" list="cats" id="cat-${i}" placeholder="Ej: Comida/Delivery"></td>
+          <td><button class="save-rule" data-i="${i}" data-match="${esc(u.counterparty || u.description)}">Guardar</button></td>
+        </tr>`).join("")
+      + "</tbody></table>"
+      + `<datalist id="cats">${st.categories.map((c) => `<option value="${esc(c)}">`).join("")}</datalist>`;
+  } else {
+    $("uncategorized").innerHTML = '<p class="empty">Nada pendiente ✓</p>';
+  }
+
+  const months = st.months;
+  for (const id of ["from", "to"]) {
+    const sel = $(id);
+    sel.innerHTML = months.map((m) => `<option>${m}</option>`).join("");
+    if (months.length) sel.value = id === "from" ? months[0] : months[months.length - 1];
+  }
+
+  if (st.unmatched.length) {
+    $("unmatched-box").hidden = false;
+    $("unmatched").innerHTML = "<table><thead><tr><th>Fecha</th><th>Descripción</th><th>Monto</th><th>Cuenta</th></tr></thead><tbody>"
+      + st.unmatched.map((u) => `<tr><td>${esc(u.date)}</td><td>${esc(u.description)}</td>
+          <td>${u.currency === "USD" ? "U$S " : "$ "}${fmt(u.amount)}</td><td>${esc(u.account_label)}</td></tr>`).join("")
+      + "</tbody></table>";
+  } else {
+    $("unmatched-box").hidden = true;
+  }
+}
+
+$("uncategorized").addEventListener("click", (e) => {
+  const btn = e.target.closest("button.save-rule");
+  if (btn) saveRule(btn.dataset.i, btn.dataset.match);
+});
+
+async function saveRule(i, matchText) {
+  const category = $(`cat-${i}`).value.trim();
+  if (!category) { $(`cat-${i}`).focus(); return; }
+  const res = await fetch("/api/rule", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ match: matchText, category }),
+  });
+  if (res.ok) await refresh();
+}
+
+// --- Paso 4: reporte ---
+$("gen").addEventListener("click", () => {
+  const q = new URLSearchParams({ from: $("from").value, to: $("to").value, usd_rate: $("usd").value });
+  $("report-box").innerHTML = `<iframe src="/report?${q}"></iframe>`;
+});
+
+refresh();
+</script>
+</body>
+</html>

@@ -17,14 +17,30 @@ Formatos soportados hoy: **Banco Galicia** (caja de ahorro en pesos) y
 **Brubank** (resumen de tarjeta de crédito, ARS + USD). Agregar un banco es
 escribir un parser nuevo en `src/moneytrail/parsers/` y registrarlo.
 
-## Instalación
+## Modo aplicación (recomendado, sin terminal)
+
+Requisito único: tener [Python 3.11+](https://www.python.org/downloads/) instalado
+(en Windows, marcá "Add Python to PATH" al instalarlo).
+
+1. Descargá o cloná este repo.
+2. Doble click en el lanzador de tu sistema:
+   - **Windows** → `MoneyTrail.bat`
+   - **macOS** → `MoneyTrail.command` (la primera vez: click derecho → Abrir)
+   - **Linux** → `MoneyTrail.sh`
+3. La primera vez prepara el entorno solo (1-2 minutos). Después se abre la app
+   en tu navegador: arrastrás los PDFs, categorizás lo que falte con un click y
+   generás el reporte. Todo corre en `127.0.0.1` — nada sale de tu máquina.
+
+Para cerrar la app, cerrá la ventana de terminal que queda abierta de fondo.
+
+## Uso por línea de comandos
+
+Instalación:
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -e ".[dev]"
 ```
-
-## Uso
 
 ```bash
 # 1. Dejá tus PDFs en data/inbox/ e importalos (idempotente: re-importar no duplica)
