@@ -40,8 +40,8 @@ Doble click en el lanzador de tu sistema — la primera vez prepara el entorno s
 | macOS | `MoneyTrail.command` (la primera vez: click derecho → Abrir) |
 | Linux | `MoneyTrail.sh` |
 
-> La carpeta del proyecto no puede tener espacios en la ruta: Python se rompe al
-> crear el entorno virtual. El lanzador lo detecta y te avisa.
+Podés tener la carpeta donde te quede cómodo (Escritorio, Documentos, el home),
+con espacios o acentos en la ruta: no afecta.
 
 ## Qué te muestra
 

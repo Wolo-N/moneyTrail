@@ -9,22 +9,8 @@ pause_and_exit() {
     exit 1
 }
 
-# Python arma sus scripts internos (pip, ensurepip) con un '#!/ruta/al/python'
-# en la primera línea; si esa ruta tiene un espacio, la ejecución se rompe y
-# 'ensurepip'/pip fallan con errores crípticos. Lo detectamos antes de perder
-# 2 minutos armando un venv que va a fallar igual.
-case "$(pwd)" in
-    *" "*)
-        echo "Esta carpeta tiene un espacio en el nombre de alguna subcarpeta:"
-        echo "  $(pwd)"
-        echo ""
-        echo "Python se rompe con espacios en la ruta al crear el entorno virtual."
-        echo "Solución: renombrá o movés la carpeta del proyecto a una ruta sin espacios,"
-        echo "por ejemplo ~/moneyTrail (podés sacar el espacio de 'Proyectos Personales'"
-        echo "o mover moneyTrail directo al home), y volvé a hacer doble click acá."
-        pause_and_exit
-        ;;
-esac
+# (Los espacios en la ruta no son problema: Python genera los scripts del venv
+# con un wrapper '#!/bin/sh' justamente para tolerarlos. Verificado.)
 
 # El Python del sistema en macOS suele ser 3.9 (o ni siquiera existir);
 # moneyTrail necesita 3.11+. Buscamos una versión válida antes de crear el venv.
