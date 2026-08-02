@@ -35,11 +35,23 @@ if "!PYTHON!"=="" (
     exit /b 1
 )
 
-rem Si un intento anterior creo el venv con un Python viejo, la instalacion
-rem falla y moneytrail.exe nunca llega a existir: lo recreamos desde cero.
-if not exist ".venv\Scripts\moneytrail.exe" (
-    if exist ".venv" rmdir /s /q ".venv"
-    echo Primera vez: preparando moneyTrail con !PYTHON! ^(1-2 minutos^)...
+rem El venv sirve solo si ademas de existir, funciona: guarda rutas absolutas
+rem adentro, asi que mover la carpeta lo rompe. Tambien queda inservible si un
+rem intento anterior fallo a mitad. En esos casos se rearma solo.
+rem Se comprueba ejecutando el comando de verdad: el lanzador del venv tiene
+rem grabada su ruta absoluta, asi que mover la carpeta lo rompe aunque el
+rem archivo siga ahi.
+set VENV_OK=
+if exist ".venv\Scripts\moneytrail.exe" (
+    .venv\Scripts\moneytrail.exe --help >nul 2>nul && set VENV_OK=1
+)
+if not defined VENV_OK (
+    if exist ".venv" (
+        echo El entorno quedo desactualizado ^(^¿moviste la carpeta?^). Rearmandolo...
+        rmdir /s /q ".venv"
+    ) else (
+        echo Primera vez: preparando moneyTrail con !PYTHON! ^(1-2 minutos^)...
+    )
     !PYTHON! -m venv .venv
     if errorlevel 1 (
         echo No se pudo crear el entorno virtual.

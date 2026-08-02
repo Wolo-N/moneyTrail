@@ -33,11 +33,25 @@ PYTHON="$(find_python)" || {
     pause_and_exit
 }
 
-# Si un intento anterior creó el venv con un Python viejo, la instalación
-# falla y .venv/bin/moneytrail nunca llega a existir: lo recreamos desde cero.
-if [ ! -x .venv/bin/moneytrail ]; then
+# El venv sirve sólo si además de existir, funciona: guarda rutas absolutas
+# adentro, así que mover la carpeta lo rompe ('bad interpreter'). También queda
+# inservible si un intento anterior falló a mitad o si desapareció el Python
+# con el que se creó. En cualquiera de esos casos se rearma solo.
+# Se comprueba ejecutando el comando de verdad (~1 s): el script tiene grabada
+# la ruta absoluta del venv en su shebang, y 'python3' adentro es un symlink
+# relativo que sigue resolviendo aunque la carpeta se haya movido — o sea que
+# mirar el intérprete no alcanza para detectar que está roto.
+venv_ok() {
+    [ -x .venv/bin/moneytrail ] && .venv/bin/moneytrail --help > /dev/null 2>&1
+}
+
+if ! venv_ok; then
+    if [ -d .venv ]; then
+        echo "El entorno quedó desactualizado (¿moviste la carpeta?). Rearmándolo..."
+    else
+        echo "Primera vez: preparando moneyTrail con $PYTHON (1-2 minutos)..."
+    fi
     rm -rf .venv
-    echo "Primera vez: preparando moneyTrail con $PYTHON (1-2 minutos)..."
 
     # Creamos el venv SIN pip y lo instalamos nosotros a continuación: cuando
     # 'python -m venv' hace este paso solo, si ensurepip falla oculta el error
