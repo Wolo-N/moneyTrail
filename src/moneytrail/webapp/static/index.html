@@ -4,214 +4,337 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>moneyTrail</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>&#128200;</text></svg>">
 <script src="/static/plotly.js"></script>
 <style>
   :root {
-    --bg: #f9f9f7;
-    --surface: #fcfcfb;
-    --surface-2: #f0efec;
-    --ink: #0b0b0b;
-    --ink-2: #52514e;
-    --muted: #898781;
-    --line: #e1e0d9;
-    --border: rgba(11,11,11,0.10);
-    --accent: #2a78d6;
-    --accent-hover: #256abf;
-    --good: #006300;
-    --good-bg: #e9f5e9;
-    --warn-bg: #fdf3e0;
-    --err-bg: #fbecec;
-    --chip-bg: #eef4fc;
-    --chip-ink: #1c5cab;
-    --shadow: 0 1px 3px rgba(11,11,11,0.06), 0 4px 16px rgba(11,11,11,0.05);
+    --bg: #f9f9f7; --surface: #fcfcfb; --surface-2: #f0efec; --surface-3: #e8e7e2;
+    --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --line: #e1e0d9; --border: rgba(11,11,11,0.10);
+    --accent: #2a78d6; --accent-hover: #256abf; --accent-soft: #eef4fc; --accent-ink: #1c5cab;
+    --good: #006300; --good-bg: #e9f5e9;
+    --warn: #a35a00; --warn-bg: #fdf3e0;
+    --err: #b02020; --err-bg: #fbecec;
+    --up: #b02020; --down: #006300;
+    --shadow: 0 1px 2px rgba(11,11,11,0.05), 0 4px 14px rgba(11,11,11,0.045);
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #0d0d0d;
-      --surface: #1a1a19;
-      --surface-2: #262624;
-      --ink: #ffffff;
-      --ink-2: #c3c2b7;
-      --muted: #898781;
-      --line: #2c2c2a;
-      --border: rgba(255,255,255,0.10);
-      --accent: #3987e5;
-      --accent-hover: #5598e7;
-      --good: #0ca30c;
-      --good-bg: #10240f;
-      --warn-bg: #2a2110;
-      --err-bg: #2b1414;
-      --chip-bg: #142438;
-      --chip-ink: #86b6ef;
-      --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);
+      --bg: #0d0d0d; --surface: #1a1a19; --surface-2: #232322; --surface-3: #2e2e2b;
+      --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+      --line: #2c2c2a; --border: rgba(255,255,255,0.10);
+      --accent: #3987e5; --accent-hover: #5598e7; --accent-soft: #142438; --accent-ink: #86b6ef;
+      --good: #0ca30c; --good-bg: #10240f;
+      --warn: #e0a53c; --warn-bg: #2a2110;
+      --err: #e66767; --err-bg: #2b1414;
+      --up: #e66767; --down: #0ca30c;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 4px 14px rgba(0,0,0,0.3);
       color-scheme: dark;
     }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-         font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color: var(--accent); }
 
-  header { position: sticky; top: 0; z-index: 20; background: var(--surface);
-           border-bottom: 1px solid var(--border); backdrop-filter: blur(8px); }
-  .bar { max-width: 1180px; margin: 0 auto; padding: 12px 20px; display: flex;
-         align-items: center; gap: 16px; flex-wrap: wrap; }
-  .logo { font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em; }
+  /* ---------- Header ---------- */
+  header { position: sticky; top: 0; z-index: 20; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .bar { max-width: 1240px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .logo { font-weight: 800; font-size: 1.1rem; letter-spacing: -0.02em; white-space: nowrap; }
   .logo span { color: var(--accent); }
+  nav { display: flex; gap: 2px; flex-wrap: wrap; }
+  nav button { font: inherit; font-size: 0.85rem; padding: 6px 13px; border: none; border-radius: 8px;
+               background: transparent; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+  nav button:hover { background: var(--surface-2); color: var(--ink); }
+  nav button.active { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+  nav button .badge { display: inline-block; min-width: 17px; padding: 0 5px; margin-left: 5px; border-radius: 999px;
+                      background: var(--warn-bg); color: var(--warn); font-size: 0.7rem; font-weight: 700; }
   .spacer { flex: 1; }
-  .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .controls label { font-size: 0.78rem; color: var(--ink-2); display: flex; gap: 6px; align-items: center; }
-  select, input[type="number"], input[type="text"] {
-    font: inherit; font-size: 0.85rem; padding: 6px 10px; border: 1px solid var(--border);
+  .ctrl { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+  .ctrl label { font-size: 0.75rem; color: var(--ink-2); display: flex; gap: 5px; align-items: center; }
+  select, input[type=number], input[type=text], input[type=search] {
+    font: inherit; font-size: 0.85rem; padding: 5px 9px; border: 1px solid var(--border);
     border-radius: 8px; background: var(--surface); color: var(--ink); min-width: 0; }
+  input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-  main { max-width: 1180px; margin: 0 auto; padding: 20px 20px 80px; }
+  main { max-width: 1240px; margin: 0 auto; padding: 18px 20px 90px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px;
+          margin-bottom: 16px; box-shadow: var(--shadow); }
+  .card > h2 { font-size: 0.98rem; margin: 0 0 3px; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+  .card > .hint { color: var(--ink-2); font-size: 0.83rem; margin: 0 0 14px; }
+  h3 { font-size: 0.88rem; margin: 22px 0 8px; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.05em; }
+  h3:first-child { margin-top: 0; }
+  .empty { color: var(--muted); font-size: 0.88rem; padding: 10px 0; }
 
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
-          padding: 18px 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
-  .card h2 { font-size: 0.95rem; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
-  .card .hint { color: var(--ink-2); font-size: 0.83rem; margin: 0 0 12px; }
+  /* ---------- Próximos pasos ---------- */
+  .steps { display: grid; gap: 8px; }
+  .step { display: flex; gap: 12px; align-items: flex-start; padding: 11px 14px; border-radius: 10px;
+          background: var(--surface-2); border-left: 3px solid var(--muted); }
+  .step.warn { background: var(--warn-bg); border-left-color: var(--warn); }
+  .step.ok { background: var(--good-bg); border-left-color: var(--good); }
+  .step .icon { font-size: 1rem; line-height: 1.3; }
+  .step .txt { flex: 1; min-width: 0; }
+  .step .t { font-weight: 600; font-size: 0.89rem; }
+  .step .d { color: var(--ink-2); font-size: 0.82rem; margin-top: 2px; }
+  .step button { font: inherit; font-size: 0.78rem; padding: 5px 12px; border-radius: 7px; border: 1px solid var(--border);
+                 background: var(--surface); color: var(--ink); cursor: pointer; white-space: nowrap; }
+  .step button:hover { border-color: var(--accent); color: var(--accent); }
 
-  #dropzone { border: 2px dashed var(--line); border-radius: 12px; padding: 22px 16px;
-              text-align: center; color: var(--ink-2); cursor: pointer; transition: all .15s;
-              font-size: 0.92rem; }
-  #dropzone.over { border-color: var(--accent); background: var(--chip-bg); color: var(--accent); }
+  /* ---------- Dropzone ---------- */
+  #dropzone { border: 2px dashed var(--line); border-radius: 12px; padding: 20px 16px; text-align: center;
+              color: var(--ink-2); cursor: pointer; transition: all .15s; font-size: 0.9rem; }
+  #dropzone.over { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
   #dropzone strong { color: var(--ink); }
   #dropzone.over strong { color: var(--accent); }
-
+  body.dragging #dropzone { border-color: var(--accent); }
   ul.results { list-style: none; padding: 0; margin: 10px 0 0; }
-  ul.results li { padding: 6px 12px; border-radius: 8px; margin-bottom: 4px; font-size: 0.86rem; }
-  li.ok { background: var(--good-bg); } li.dup { background: var(--surface-2); }
+  ul.results li { padding: 6px 12px; border-radius: 8px; margin-bottom: 4px; font-size: 0.85rem; }
+  li.ok { background: var(--good-bg); } li.dup { background: var(--surface-2); color: var(--ink-2); }
   li.err { background: var(--err-bg); } li.warn { background: var(--warn-bg); }
 
-  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-           gap: 12px; margin-bottom: 16px; }
-  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
-          padding: 14px 18px; box-shadow: var(--shadow); }
-  .tile .k { color: var(--ink-2); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
-  .tile .v { font-size: 1.45rem; font-weight: 700; margin-top: 4px; letter-spacing: -0.01em; }
-  .tile .v.pos { color: var(--good); }
+  /* ---------- Tiles ---------- */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 11px; margin-bottom: 16px; }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 13px 16px; box-shadow: var(--shadow); }
+  .tile .k { color: var(--ink-2); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .tile .v { font-size: 1.32rem; font-weight: 700; margin-top: 3px; letter-spacing: -0.015em; }
+  .tile .v.pos { color: var(--good); } .tile .v.neg { color: var(--err); }
+  .tile .s { color: var(--muted); font-size: 0.75rem; margin-top: 2px; }
 
-  #sankey { width: 100%; height: 540px; overflow: hidden; }
-  .sankey-empty { color: var(--muted); text-align: center; padding: 60px 0; }
-  /* Que el scroll automático no deje los elementos debajo del header sticky */
-  .chip, .uncat-row, .card { scroll-margin-top: 90px; }
+  /* ---------- Charts ---------- */
+  .chart { width: 100%; height: 340px; }
+  .chart.tall { height: 520px; }
 
+  /* ---------- Tablas ---------- */
   table { border-collapse: collapse; width: 100%; }
-  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line);
-           font-size: 0.86rem; font-variant-numeric: tabular-nums; }
-  th { color: var(--ink-2); font-weight: 600; font-size: 0.74rem; text-transform: uppercase;
-       letter-spacing: 0.04em; }
+  th, td { text-align: left; padding: 7px 11px; border-bottom: 1px solid var(--line); font-size: 0.85rem;
+           font-variant-numeric: tabular-nums; }
+  th { color: var(--ink-2); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
+       position: sticky; top: 0; background: var(--surface); }
   tr:last-child td { border-bottom: none; }
-  td.num { text-align: right; white-space: nowrap; }
-  th.num { text-align: right; }
+  td.num, th.num { text-align: right; white-space: nowrap; }
   .tbl-wrap { overflow-x: auto; }
+  .tbl-scroll { max-height: 460px; overflow-y: auto; }
+  tbody tr:hover { background: var(--surface-2); }
+  .sub { color: var(--muted); font-size: 0.78rem; }
+  .bar-cell { position: relative; }
+  .bar-fill { position: absolute; left: 0; top: 3px; bottom: 3px; border-radius: 3px; opacity: 0.18; }
+  .bar-cell span { position: relative; }
+  .delta.up { color: var(--up); } .delta.down { color: var(--down); }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 7px; vertical-align: baseline; }
 
+  /* ---------- Chips de categorización ---------- */
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip { font: inherit; font-size: 0.78rem; padding: 4px 12px; border-radius: 999px;
-          border: 1px solid var(--border); background: var(--chip-bg); color: var(--chip-ink);
-          cursor: pointer; transition: all .12s; white-space: nowrap; }
+  .chip { font: inherit; font-size: 0.78rem; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border);
+          background: var(--accent-soft); color: var(--accent-ink); cursor: pointer; transition: all .12s; white-space: nowrap; }
   .chip:hover { border-color: var(--accent); transform: translateY(-1px); }
   .chip.ghost { background: transparent; color: var(--ink-2); border-style: dashed; }
-  .uncat-row { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  /* Sugerencia: el comercio ya se clasificó antes, o parece una transferencia a una persona */
+  .chip.suggested { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+  .chip.suggested::before { content: "★ "; }
+  .uncat-row { padding: 11px 0; border-bottom: 1px solid var(--line); transition: opacity .18s, transform .18s; }
   .uncat-row:last-child { border-bottom: none; }
-  .uncat-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
-  .uncat-head .desc { font-weight: 600; font-size: 0.92rem; }
-  .uncat-head .meta { color: var(--ink-2); font-size: 0.8rem; }
-  .uncat-head .amt { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 0.9rem;
-                     color: var(--ink-2); }
+  .uncat-row.leaving { opacity: 0; transform: translateX(18px); }
+  .uncat-head { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; margin-bottom: 7px; }
+  .uncat-head .desc { font-weight: 600; font-size: 0.9rem; }
+  .uncat-head .meta { color: var(--ink-2); font-size: 0.79rem; }
+  .uncat-head .amt { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 0.88rem; color: var(--ink-2); }
   .new-cat-box { display: none; margin-top: 8px; gap: 8px; }
   .new-cat-box.open { display: flex; }
 
-  .pill { font-size: 0.72rem; background: var(--surface-2); border-radius: 999px;
-          padding: 2px 10px; color: var(--ink-2); font-weight: 500; }
-  .pill.warn { background: var(--warn-bg); }
-
-  button.primary { font: inherit; font-size: 0.85rem; padding: 7px 16px; border: none;
-                   border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; }
+  .pill { font-size: 0.71rem; background: var(--surface-2); border-radius: 999px; padding: 2px 10px; color: var(--ink-2); font-weight: 500; }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .pill.ok { background: var(--good-bg); color: var(--good); }
+  button.primary { font: inherit; font-size: 0.84rem; padding: 6px 15px; border: none; border-radius: 8px;
+                   background: var(--accent); color: #fff; cursor: pointer; }
   button.primary:hover { background: var(--accent-hover); }
-  .empty { color: var(--muted); font-size: 0.88rem; }
+  button.ghost { font: inherit; font-size: 0.8rem; padding: 5px 12px; border-radius: 8px; border: 1px solid var(--border);
+                 background: var(--surface); color: var(--ink-2); cursor: pointer; }
+  button.ghost:hover { color: var(--accent); border-color: var(--accent); }
 
-  /* Drawer de drill-through */
-  #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); opacity: 0;
-             pointer-events: none; transition: opacity .2s; z-index: 30; }
+  /* ---------- Drawer ---------- */
+  #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 30; }
   #overlay.open { opacity: 1; pointer-events: auto; }
-  #drawer { position: fixed; top: 0; right: -560px; width: min(560px, 92vw); height: 100vh;
-            background: var(--surface); border-left: 1px solid var(--border); z-index: 40;
-            transition: right .25s ease; display: flex; flex-direction: column;
+  #drawer { position: fixed; top: 0; right: -620px; width: min(620px, 94vw); height: 100vh; background: var(--surface);
+            border-left: 1px solid var(--border); z-index: 40; transition: right .25s ease; display: flex; flex-direction: column;
             box-shadow: -8px 0 32px rgba(0,0,0,0.15); }
   #drawer.open { right: 0; }
-  .drawer-head { padding: 18px 20px 12px; border-bottom: 1px solid var(--line);
-                 display: flex; align-items: center; gap: 10px; }
-  .drawer-head .dot { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
-  .drawer-head h3 { margin: 0; font-size: 1.05rem; flex: 1; }
-  .drawer-head .total { font-variant-numeric: tabular-nums; color: var(--ink-2); font-size: 0.9rem; }
-  .drawer-close { font: inherit; background: none; border: none; color: var(--ink-2);
-                  font-size: 1.4rem; cursor: pointer; line-height: 1; padding: 4px 8px; }
-  .drawer-body { overflow-y: auto; flex: 1; padding: 8px 20px 24px; }
+  .drawer-head { padding: 17px 20px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
+  .drawer-head h3 { margin: 0; font-size: 1.03rem; flex: 1; text-transform: none; letter-spacing: 0; color: var(--ink); }
+  .drawer-head .total { font-variant-numeric: tabular-nums; color: var(--ink-2); font-size: 0.88rem; }
+  .drawer-close { font: inherit; background: none; border: none; color: var(--ink-2); font-size: 1.4rem; cursor: pointer; line-height: 1; padding: 2px 6px; }
+  .drawer-body { overflow-y: auto; flex: 1; padding: 6px 20px 24px; }
 
-  details summary { cursor: pointer; color: var(--ink-2); font-size: 0.88rem; padding: 4px 0; }
-  .accounts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
-  .acct { border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; background: var(--surface-2); }
-  .acct .name { font-weight: 600; font-size: 0.88rem; }
-  .acct .meta { color: var(--ink-2); font-size: 0.78rem; margin-top: 2px; }
+  /* ---------- Toast ---------- */
+  #toast { position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 90px); z-index: 60;
+           background: var(--ink); color: var(--bg); padding: 11px 16px; border-radius: 11px; font-size: 0.87rem;
+           display: flex; gap: 14px; align-items: center; box-shadow: 0 8px 28px rgba(0,0,0,0.3);
+           transition: transform .22s ease, opacity .22s; opacity: 0; pointer-events: none; max-width: 92vw; }
+  #toast.show { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+  #toast button { font: inherit; font-size: 0.83rem; font-weight: 600; background: none; border: none;
+                  color: #7fb2f5; cursor: pointer; padding: 0; white-space: nowrap; }
+
+  .accounts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+  .acct { border: 1px solid var(--border); border-radius: 10px; padding: 10px 13px; background: var(--surface-2); }
+  .acct .name { font-weight: 600; font-size: 0.86rem; }
+  .acct .meta { color: var(--ink-2); font-size: 0.77rem; margin-top: 2px; }
+  details summary { cursor: pointer; color: var(--ink-2); font-size: 0.86rem; padding: 3px 0; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .filters input[type=search] { flex: 1; min-width: 200px; }
+  .hidden { display: none !important; }
+  /* El header es sticky: sin esto, saltar a una sección la deja tapada */
+  .card, .uncat-row { scroll-margin-top: 84px; }
+  .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border);
+             border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: -2px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 <header>
   <div class="bar">
     <div class="logo">money<span>Trail</span></div>
+    <nav id="nav">
+      <button data-tab="resumen" class="active">Resumen</button>
+      <button data-tab="tendencias">Tendencias</button>
+      <button data-tab="categorias">Categorías</button>
+      <button data-tab="recurrentes">Recurrentes</button>
+      <button data-tab="movimientos">Movimientos</button>
+    </nav>
     <div class="spacer"></div>
-    <div class="controls">
-      <label>Desde <select id="from"></select></label>
-      <label>Hasta <select id="to"></select></label>
-      <label>USD→ARS <input type="number" id="usd" value="1500" step="5" style="width:88px"></label>
+    <div class="ctrl">
+      <label>Período <select id="from"></select></label>
+      <label>a <select id="to"></select></label>
+      <label title="Tipo de cambio para convertir los consumos en dólares">USD <input type="number" id="usd" step="5" style="width:82px"></label>
     </div>
   </div>
 </header>
 
 <main>
-  <section class="card">
-    <div id="dropzone"><strong>Soltá los PDFs acá</strong> · o hacé click para buscarlos — re-importar no duplica nada</div>
-    <input type="file" id="fileinput" accept=".pdf" multiple hidden>
-    <ul class="results" id="import-results"></ul>
-  </section>
-
-  <div class="tiles" id="tiles" hidden>
-    <div class="tile"><div class="k">Ingresos</div><div class="v pos" id="t-income"></div></div>
-    <div class="tile"><div class="k">Gastos</div><div class="v" id="t-expense"></div></div>
-    <div class="tile"><div class="k">Resultado</div><div class="v" id="t-savings"></div></div>
-  </div>
-
-  <section class="card">
-    <h2>Flujo del dinero <span class="pill">clickeá un nodo para ver sus transacciones</span></h2>
-    <div id="sankey"><p class="sankey-empty">Importá al menos un extracto para ver el flujo.</p></div>
-    <p class="hint" id="usd-note" hidden></p>
-  </section>
-
-  <section class="card" id="uncat-card" hidden>
-    <h2>Categorizá lo que falta <span class="pill warn" id="uncat-count"></span></h2>
-    <p class="hint">Un click en la categoría alcanza: se guarda la regla y la próxima vez se aplica sola.</p>
-    <div id="uncategorized"></div>
-  </section>
-
-  <section class="card" id="accounts-card" hidden>
-    <h2>Tus cuentas</h2>
-    <div class="accounts-grid" id="accounts"></div>
-  </section>
-
-  <section class="card" id="unmatched-card" hidden>
-    <details>
-      <summary><strong id="unmatched-count"></strong> flujos internos sin conciliar — se enlazan solos cuando importás el extracto que falta</summary>
-      <div class="tbl-wrap" id="unmatched" style="margin-top:10px"></div>
+  <section class="card" id="steps-card" hidden>
+    <h2>Tu próximo paso <span class="pill" id="health-pill"></span></h2>
+    <div class="steps" id="steps"></div>
+    <details style="margin-top:12px">
+      <summary>¿Cómo uso esto cada mes?</summary>
+      <div class="hint" style="margin:8px 0 0; line-height:1.6">
+        <strong>1.</strong> Descargá del homebanking los resúmenes del mes (banco y tarjetas) y soltalos en la zona de arriba —
+        podés soltar varios juntos y repetir archivos sin miedo: nunca se duplica nada.<br>
+        <strong>2.</strong> Categorizá lo que aparezca pendiente con un click. Cada click se aprende y no vuelve a preguntarte por ese comercio.<br>
+        <strong>3.</strong> Mirá el flujo y las tendencias. Listo — son dos minutos.
+      </div>
     </details>
   </section>
+
+  <!-- ============ RESUMEN ============ -->
+  <div class="tab" id="tab-resumen">
+    <section class="card">
+      <div id="dropzone"><strong>Soltá acá los PDFs de tus resúmenes</strong> · o hacé click para buscarlos — importar de nuevo no duplica nada</div>
+      <input type="file" id="fileinput" accept=".pdf" multiple hidden>
+      <ul class="results" id="import-results"></ul>
+    </section>
+
+    <div class="tiles" id="tiles"></div>
+
+    <section class="card">
+      <h2>A dónde fue la plata <span class="pill">clickeá cualquier nodo para ver el detalle</span></h2>
+      <p class="hint" id="sankey-hint"></p>
+      <div class="chart tall" id="sankey"></div>
+    </section>
+
+    <section class="card" id="uncat-card" hidden>
+      <h2>Categorizá lo que falta <span class="pill warn" id="uncat-count"></span></h2>
+      <p class="hint">Un click alcanza: la elección queda aprendida y se aplica sola a los meses que vengan.</p>
+      <div id="uncategorized"></div>
+    </section>
+
+    <section class="card" id="accounts-card" hidden>
+      <h2>Tus cuentas</h2>
+      <div class="accounts-grid" id="accounts"></div>
+      <details id="unmatched-details" style="margin-top:12px" hidden>
+        <summary><strong id="unmatched-count"></strong> movimientos internos sin par — se enlazan solos al importar el resumen que falta</summary>
+        <div class="tbl-wrap" id="unmatched" style="margin-top:10px"></div>
+      </details>
+    </section>
+  </div>
+
+  <!-- ============ TENDENCIAS ============ -->
+  <div class="tab hidden" id="tab-tendencias">
+    <div class="tiles" id="trend-tiles"></div>
+    <section class="card">
+      <h2>Ingresos y gastos por mes</h2>
+      <p class="hint">Toda tu historia importada, más allá del período elegido arriba.</p>
+      <div class="chart" id="chart-monthly"></div>
+      <p class="hint" id="trend-note" style="margin:10px 0 0"></p>
+    </section>
+    <section class="card">
+      <h2>Resultado de cada mes</h2>
+      <p class="hint">Lo que quedó después de gastar. Verde: ahorraste; rojo: gastaste más de lo que entró.</p>
+      <div class="chart" id="chart-savings"></div>
+    </section>
+    <section class="card">
+      <h2>En qué se va la plata, mes a mes</h2>
+      <p class="hint">Las categorías más grandes del período elegido, apiladas por mes.</p>
+      <div class="chart" id="chart-catmonth"></div>
+    </section>
+  </div>
+
+  <!-- ============ CATEGORÍAS ============ -->
+  <div class="tab hidden" id="tab-categorias">
+    <section class="card">
+      <h2>Gasto por categoría</h2>
+      <p class="hint" id="cat-hint"></p>
+      <div class="tbl-wrap"><table id="cat-table"></table></div>
+    </section>
+    <section class="card" id="mom-card">
+      <h2>Qué cambió respecto del mes anterior <span class="pill" id="mom-pill"></span></h2>
+      <p class="hint">Lo que más subió y lo que más bajó. Es donde suele estar la sorpresa del mes.</p>
+      <p class="hint" id="mom-warn" style="color:var(--warn)"></p>
+      <div class="tbl-wrap"><table id="mom-table"></table></div>
+    </section>
+    <section class="card">
+      <h2>Los gastos más grandes del período</h2>
+      <div class="tbl-wrap"><table id="big-table"></table></div>
+    </section>
+    <section class="card">
+      <h2>Dónde más gastás</h2>
+      <p class="hint">Comercios agrupados: se ignoran los números de referencia, así todas las compras del mismo lugar suman juntas.</p>
+      <div class="chart" id="chart-merchants"></div>
+      <div class="tbl-wrap tbl-scroll" style="margin-top:8px"><table id="merch-table"></table></div>
+    </section>
+  </div>
+
+  <!-- ============ RECURRENTES ============ -->
+  <div class="tab hidden" id="tab-recurrentes">
+    <div class="tiles" id="rec-tiles"></div>
+    <section class="card">
+      <h2>Gastos que se repiten todos los meses</h2>
+      <p class="hint">Detectados solos: el mismo comercio aparece en dos meses distintos o más.
+         Los <strong>fijos</strong> mantienen el importe (suscripciones, abonos, cocheras) y ahí la columna
+         <strong>variación</strong> delata los aumentos que nadie mira; los <strong>variables</strong> son
+         hábitos como delivery o transporte, donde lo que importa es cuánto suman por mes.</p>
+      <div class="tbl-wrap"><table id="rec-table"></table></div>
+    </section>
+  </div>
+
+  <!-- ============ MOVIMIENTOS ============ -->
+  <div class="tab hidden" id="tab-movimientos">
+    <section class="card">
+      <h2>Todos los movimientos</h2>
+      <div class="filters">
+        <input type="search" id="tx-q" placeholder="Buscar comercio, descripción o contraparte…">
+        <select id="tx-cat"><option value="">Todas las categorías</option></select>
+        <select id="tx-acct"><option value="">Todas las cuentas</option></select>
+        <button class="ghost" id="tx-export">Exportar CSV</button>
+      </div>
+      <div class="tbl-wrap tbl-scroll"><table id="tx-table"></table></div>
+      <p class="hint" id="tx-count" style="margin:10px 0 0"></p>
+    </section>
+  </div>
 </main>
 
 <div id="overlay"></div>
-<aside id="drawer" role="dialog" aria-modal="true">
+<aside id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
   <div class="drawer-head">
-    <span class="dot" id="drawer-dot"></span>
+    <span class="dot" id="drawer-dot" style="width:12px;height:12px"></span>
     <h3 id="drawer-title"></h3>
     <span class="total" id="drawer-total"></span>
     <button class="drawer-close" id="drawer-close" aria-label="Cerrar">×</button>
@@ -219,260 +342,563 @@
   <div class="drawer-body" id="drawer-body"></div>
 </aside>
 
-<script>
-const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
-  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const fmt = (n) => "$ " + Number(n).toLocaleString("es-AR", { maximumFractionDigits: 0 });
-const fmt2 = (n, cur) => (cur === "USD" ? "U$S " : "$ ") +
-  Number(n).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+<div id="toast"><span id="toast-msg"></span><button id="toast-action" hidden></button></div>
 
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const nf0 = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 });
+const nf2 = new Intl.NumberFormat("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = (n) => "$ " + nf0.format(Math.round(Number(n) || 0));
+const moneyCur = (n, cur) => (cur === "USD" ? "U$S " : "$ ") + nf2.format(Math.abs(Number(n) || 0));
+const pct = (n) => (n === null || n === undefined) ? "—" : nf0.format(n) + "%";
 const darkMq = window.matchMedia("(prefers-color-scheme: dark)");
 const isDark = () => darkMq.matches;
+const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-let state = { categories: [], sankeyNodes: [] };
+const App = { state: null, tab: "resumen", drawn: {}, lastSankeyKey: "", txTimer: null };
 
-// ---------- Importación (drag & drop) ----------
+// ---------------------------------------------------------------- utilidades
+function rgba(hex, a) {
+  const h = (hex || "#888888").replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function seriesColor(label, i) {
+  // El color de una categoría lo manda el Sankey: así el mismo concepto tiene
+  // el mismo color en todos los gráficos de la app.
+  const node = (App.state?.sankey?.nodes || []).find((n) => n.label === label);
+  if (node) return isDark() ? node.colorDark : node.colorLight;
+  const fallback = isDark()
+    ? ["#3987e5", "#199e70", "#c98500", "#008300", "#9085e9", "#e66767", "#d55181", "#d95926"]
+    : ["#2a78d6", "#1baf7a", "#eda100", "#008300", "#4a3aa7", "#e34948", "#e87ba4", "#eb6834"];
+  return fallback[i % fallback.length];
+}
+function baseLayout(extra) {
+  return Object.assign({
+    font: { family: 'system-ui, -apple-system, "Segoe UI", sans-serif', size: 12, color: cssVar("--ink") },
+    paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+    margin: { l: 62, r: 16, t: 10, b: 40 },
+    separators: ",.",
+    hoverlabel: { bgcolor: cssVar("--surface"), bordercolor: cssVar("--border"),
+                  font: { color: cssVar("--ink"), family: 'system-ui, sans-serif', size: 12 } },
+    xaxis: { gridcolor: "rgba(0,0,0,0)", linecolor: cssVar("--line"), tickfont: { color: cssVar("--muted") }, zeroline: false },
+    yaxis: { gridcolor: cssVar("--line"), linecolor: "rgba(0,0,0,0)", tickfont: { color: cssVar("--muted") },
+             zeroline: true, zerolinecolor: cssVar("--line"), tickformat: ",.3~s" },
+    legend: { orientation: "h", y: -0.16, font: { color: cssVar("--ink-2"), size: 11 } },
+  }, extra || {});
+}
+const PLOT_CFG = { displayModeBar: false, responsive: true };
+
+function toast(msg, actionLabel, onAction) {
+  $("toast-msg").textContent = msg;
+  const btn = $("toast-action");
+  btn.hidden = !actionLabel;
+  if (actionLabel) { btn.textContent = actionLabel; btn.onclick = () => { hideToast(); onAction(); }; }
+  $("toast").classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(hideToast, 7000);
+}
+function hideToast() { $("toast").classList.remove("show"); }
+
+// ---------------------------------------------------------------- estado
+function periodParams() {
+  const p = new URLSearchParams();
+  if ($("from").value) p.set("from", $("from").value);
+  if ($("to").value) p.set("to", $("to").value);
+  if ($("usd").value) p.set("usd_rate", $("usd").value);
+  return p;
+}
+async function loadState() {
+  const res = await fetch(`/api/state?${periodParams()}`);
+  applyState(await res.json());
+}
+function applyState(state) {
+  App.state = state;
+  App.drawn = {};              // los gráficos se redibujan al entrar a su pestaña
+  syncPeriodControls();
+  renderSteps();
+  renderTab(App.tab, true);
+  renderNavBadges();
+}
+function syncPeriodControls() {
+  const st = App.state, months = st.months;
+  for (const id of ["from", "to"]) {
+    const sel = $(id), prev = sel.value;
+    sel.innerHTML = months.map((m) => `<option value="${m}">${monthLabel(m)}</option>`).join("");
+    const wanted = id === "from" ? (st.period.from || "").slice(0, 7) : (st.period.to || "").slice(0, 7);
+    if (months.includes(prev)) sel.value = prev;
+    else if (months.includes(wanted)) sel.value = wanted;
+    else if (months.length) sel.value = id === "from" ? months[0] : months[months.length - 1];
+  }
+  if (!$("usd").value) $("usd").value = st.period.usd_rate;
+}
+const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const monthLabel = (m) => m ? `${MESES[parseInt(m.slice(5, 7), 10) - 1]} ${m.slice(0, 4)}` : "";
+
+// ---------------------------------------------------------------- próximos pasos
+function renderSteps() {
+  const steps = App.state.steps || [], h = App.state.health;
+  $("steps-card").hidden = false;
+  $("health-pill").textContent = `${h.transactions} movimientos · ${h.categorized_pct}% categorizado · ${h.accounts} cuentas`;
+  $("steps").innerHTML = steps.map((s) => {
+    const icon = s.severity === "ok" ? "✓" : s.severity === "warn" ? "!" : "›";
+    const action = s.action === "import" ? `<button data-goto="dropzone">Importar</button>`
+                 : s.action === "categorize" ? `<button data-goto="uncat">Categorizar</button>` : "";
+    return `<div class="step ${esc(s.severity)}"><span class="icon">${icon}</span>
+      <div class="txt"><div class="t">${esc(s.title)}</div><div class="d">${esc(s.detail)}</div></div>${action}</div>`;
+  }).join("");
+}
+$("steps").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-goto]");
+  if (!btn) return;
+  showTab("resumen");
+  const target = btn.dataset.goto === "uncat" ? $("uncat-card") : $("dropzone");
+  target.scrollIntoView({ block: "center" });
+  target.animate([{ boxShadow: `0 0 0 0 ${rgba(cssVar("--accent"), 0.5)}` }, { boxShadow: `0 0 0 10px ${rgba(cssVar("--accent"), 0)}` }], { duration: 900 });
+});
+
+function renderNavBadges() {
+  const n = (App.state.uncategorized || []).length;
+  const btn = document.querySelector('nav button[data-tab="resumen"]');
+  btn.innerHTML = "Resumen" + (n ? ` <span class="badge">${n}</span>` : "");
+}
+
+// ---------------------------------------------------------------- import
 const dz = $("dropzone"), fi = $("fileinput");
 dz.addEventListener("click", () => fi.click());
 ["dragover", "dragenter"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("over"); }));
 ["dragleave", "drop"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove("over"); }));
 dz.addEventListener("drop", (e) => importFiles(e.dataTransfer.files));
 fi.addEventListener("change", () => { importFiles(fi.files); fi.value = ""; });
+window.addEventListener("dragover", (e) => { e.preventDefault(); document.body.classList.add("dragging"); });
+window.addEventListener("dragleave", (e) => { if (e.relatedTarget === null) document.body.classList.remove("dragging"); });
+window.addEventListener("drop", (e) => { e.preventDefault(); document.body.classList.remove("dragging"); });
 
 async function importFiles(files) {
   if (!files.length) return;
+  showTab("resumen");
   const ul = $("import-results");
-  ul.innerHTML = '<li class="dup">Importando…</li>';
+  ul.innerHTML = `<li class="dup"><span class="spinner"></span> Leyendo ${files.length} archivo${files.length > 1 ? "s" : ""}…</li>`;
   const fd = new FormData();
   for (const f of files) fd.append("files", f);
   try {
     const res = await (await fetch("/api/import", { method: "POST", body: fd })).json();
-    ul.innerHTML = "";
-    for (const r of res.results) {
-      const li = document.createElement("li");
-      if (r.status === "imported") { li.className = "ok"; li.textContent = `✓ ${r.source}: ${r.new_txs} movimientos nuevos (${r.parser})`; }
-      else if (r.status === "skipped_duplicate") { li.className = "dup"; li.textContent = `= ${r.source}: ya estaba importado`; }
-      else if (r.status === "no_parser") { li.className = "warn"; li.textContent = `? ${r.source}: formato no soportado todavía`; }
-      else { li.className = "err"; li.textContent = `✗ ${r.source}: ${r.error}`; }
-      ul.appendChild(li);
-    }
-    if (res.new_links) {
-      const li = document.createElement("li");
-      li.className = "ok";
-      li.textContent = `⇄ ${res.new_links} flujos internos conciliados entre cuentas`;
-      ul.appendChild(li);
-    }
+    ul.innerHTML = res.results.map((r) => {
+      if (r.status === "imported") return `<li class="ok">✓ ${esc(r.source)}: ${r.new_txs} movimientos nuevos <span class="sub">(${esc(r.parser)})</span></li>`;
+      if (r.status === "skipped_duplicate") return `<li class="dup">= ${esc(r.source)}: ya estaba importado</li>`;
+      if (r.status === "no_parser") return `<li class="warn">? ${esc(r.source)}: formato no soportado todavía</li>`;
+      return `<li class="err">✗ ${esc(r.source)}: ${esc(r.error)}</li>`;
+    }).join("") + (res.new_links ? `<li class="ok">⇄ ${res.new_links} movimientos internos conciliados entre cuentas</li>` : "");
+    applyState(res.state);
+    const ok = res.results.filter((r) => r.status === "imported").length;
+    if (ok) toast(`${ok} resumen${ok > 1 ? "es" : ""} importado${ok > 1 ? "s" : ""}`);
   } catch (err) {
     ul.innerHTML = `<li class="err">✗ Error importando: ${esc(err)}</li>`;
   }
-  await refresh();
 }
 
-// ---------- Estado ----------
-async function refresh() {
-  const st = await (await fetch("/api/status")).json();
-  state.categories = st.categories;
-
-  const months = st.months;
-  for (const id of ["from", "to"]) {
-    const sel = $(id), prev = sel.value;
-    sel.innerHTML = months.map((m) => `<option>${m}</option>`).join("");
-    if (months.includes(prev)) sel.value = prev;
-    else if (months.length) sel.value = id === "from" ? months[0] : months[months.length - 1];
-  }
-
-  $("accounts-card").hidden = !st.accounts.length;
-  $("accounts").innerHTML = st.accounts.map((a) => `
-    <div class="acct"><div class="name">${esc(a.label)}</div>
-      <div class="meta">${a.txs} movimientos · ${esc(a.d0)} → ${esc(a.d1)}</div></div>`).join("");
-
-  renderUncategorized(st.uncategorized);
-
-  $("unmatched-card").hidden = !st.unmatched.length;
-  if (st.unmatched.length) {
-    $("unmatched-count").textContent = st.unmatched.length;
-    $("unmatched").innerHTML = "<table><thead><tr><th>Fecha</th><th>Descripción</th><th class='num'>Monto</th><th>Cuenta</th></tr></thead><tbody>"
-      + st.unmatched.map((u) => `<tr><td>${esc(u.date)}</td><td>${esc(u.description)}</td>
-          <td class="num">${fmt2(u.amount, u.currency)}</td><td>${esc(u.account_label)}</td></tr>`).join("")
-      + "</tbody></table>";
-  }
-
-  await renderSankey();
+// ---------------------------------------------------------------- tabs
+$("nav").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-tab]");
+  if (btn) showTab(btn.dataset.tab);
+});
+function showTab(tab) {
+  App.tab = tab;
+  document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+  document.querySelectorAll(".tab").forEach((el) => el.classList.toggle("hidden", el.id !== `tab-${tab}`));
+  renderTab(tab);
+}
+function renderTab(tab, force) {
+  if (!App.state) return;
+  const R = { resumen: renderResumen, tendencias: renderTendencias, categorias: renderCategorias,
+              recurrentes: renderRecurrentes, movimientos: renderMovimientos }[tab];
+  if (!R) return;
+  if (force) App.drawn[tab] = false;
+  R();
+  App.drawn[tab] = true;
 }
 
-// ---------- Categorización con un click ----------
-function renderUncategorized(un) {
+// ---------------------------------------------------------------- RESUMEN
+function renderResumen() {
+  const t = App.state.insights.totals, s = App.state.sankey;
+  const rate = t.savings_rate;
+  const nm = App.state.insights.period.months.length;
+  $("tiles").innerHTML = tile("Ingresos", money(t.income), "pos", nm === 1 ? "1 mes" : `${nm} meses`)
+    + tile("Gastos", money(t.expense), "", `${t.n_transactions} movimientos`)
+    + tile("Resultado", money(t.savings), t.savings >= 0 ? "pos" : "neg", rate === null ? "" : `${pct(rate)} de lo que entró`)
+    + tile("Gasto por día", money(t.daily_burn), "", `${App.state.insights.period.days} días`)
+    + (t.savings_like > 0 ? tile("De eso, ahorro", money(t.savings_like), "pos", "compra de dólares") : "");
+
+  $("sankey-hint").textContent = s.usd_converted
+    ? `Incluye U$S ${nf2.format(s.usd_converted)} convertidos a pesos a ${money(s.usd_rate)} por dólar.` : "";
+  renderSankey();
+  renderUncategorized();
+
+  const accts = App.state.accounts.filter((a) => a.txs > 0);
+  $("accounts-card").hidden = !accts.length;
+  $("accounts").innerHTML = accts.map((a) => `<div class="acct"><div class="name">${esc(a.label)}</div>
+    <div class="meta">${a.txs} movimientos · ${a.stmts} resúmenes<br>${esc(a.first_day || "")} → ${esc(a.last_day || "")}</div></div>`).join("");
+
+  const um = App.state.unmatched;
+  $("unmatched-details").hidden = !um.length;
+  if (um.length) {
+    $("unmatched-count").textContent = um.length;
+    $("unmatched").innerHTML = `<table><thead><tr><th>Fecha</th><th>Descripción</th><th class="num">Monto</th><th>Cuenta</th></tr></thead><tbody>`
+      + um.map((u) => `<tr><td>${esc(u.date)}</td><td>${esc(u.description)}</td><td class="num">${moneyCur(u.amount, u.currency)}</td><td>${esc(u.account_label)}</td></tr>`).join("")
+      + `</tbody></table>`;
+  }
+}
+const tile = (k, v, cls, s) => `<div class="tile"><div class="k">${esc(k)}</div><div class="v ${cls || ""}">${esc(v)}</div>${s ? `<div class="s">${esc(s)}</div>` : ""}</div>`;
+
+function renderSankey() {
+  const data = App.state.sankey;
+  const el = $("sankey");
+  if (!data.links.length) { el.innerHTML = '<p class="empty" style="text-align:center;padding:60px 0">Importá un resumen para ver el flujo.</p>'; return; }
+  const key = JSON.stringify(data) + isDark();
+  if (App.lastSankeyKey === key && el.querySelector(".sankey-node")) return;  // nada cambió: no repintar
+  App.lastSankeyKey = key;
+  if (el.querySelector("p")) el.innerHTML = "";
+
+  const colors = data.nodes.map((n) => isDark() ? n.colorDark : n.colorLight);
+  const trace = {
+    type: "sankey",
+    // 'fixed': con 'snap' el drag de Plotly se traga el click y no habría drill-through.
+    arrangement: "fixed",
+    node: {
+      label: data.nodes.map((n) => n.label), color: colors, pad: 17, thickness: 14, line: { width: 0 },
+      customdata: data.nodes.map((n) => n.n),
+      hovertemplate: "<b>%{label}</b><br>%{value:,.0f} ARS<br>%{customdata} movimientos<extra>click para ver el detalle</extra>",
+    },
+    link: {
+      source: data.links.map((l) => l.source), target: data.links.map((l) => l.target), value: data.links.map((l) => l.value),
+      color: data.links.map((l) => rgba(colors[l.source], 0.3)),
+      hovertemplate: "%{source.label} → %{target.label}<br><b>%{value:,.0f} ARS</b><extra></extra>",
+    },
+  };
+  Plotly.react(el, [trace], baseLayout({ height: 520, margin: { l: 8, r: 8, t: 8, b: 8 } }), PLOT_CFG).then(() => {
+    el.removeAllListeners && el.removeAllListeners("plotly_click");
+    el.on("plotly_click", (ev) => {
+      const pt = ev.points && ev.points[0];
+      if (!pt || pt.source !== undefined) return;   // sólo nodos, no links
+      const node = data.nodes.find((n) => n.label === pt.label);
+      if (node && node.drillable) openDrill(node);
+    });
+  });
+}
+
+// ---------------------------------------------------------------- categorización 1 click
+function renderUncategorized() {
+  const un = App.state.uncategorized || [];
   $("uncat-card").hidden = !un.length;
   $("uncat-count").textContent = un.length ? `${un.length} pendientes` : "";
   if (!un.length) return;
-  // Chips de un click: sólo las categorías más usadas (vienen ordenadas por
-  // frecuencia); el resto queda en el autocompletar de "Otra…".
-  const topCats = state.categories.slice(0, 6);
-  $("uncategorized").innerHTML = un.map((u, i) => {
+  const top = (App.state.categories || []).slice(0, 6);
+  const VISIBLE = 12;   // una lista de 30 filas abruma; el resto se despliega
+  const rowHtml = (u, i) => {
     const match = u.counterparty || u.description;
-    const chips = topCats.map((c) =>
-      `<button class="chip" data-match="${esc(match)}" data-cat="${esc(c)}">${esc(c)}</button>`).join("");
-    return `<div class="uncat-row">
+    const chip = (c, extra) =>
+      `<button class="chip ${extra || ""}" data-match="${esc(match)}" data-cat="${esc(c)}">${esc(c)}</button>`;
+    const suggested = u.suggested ? chip(u.suggested, "suggested") : "";
+    const others = top.filter((c) => c !== u.suggested).map((c) => chip(c)).join("");
+    return `<div class="uncat-row ${i >= VISIBLE ? "extra hidden" : ""}" data-row="${i}">
       <div class="uncat-head">
         <span class="desc">${esc(u.description)}</span>
         ${u.counterparty ? `<span class="meta">${esc(u.counterparty)}</span>` : ""}
         <span class="meta">${u.n} mov${u.n > 1 ? "s" : ""}</span>
-        <span class="amt">${fmt2(u.approx_total, u.currency)}</span>
+        <span class="amt">${moneyCur(u.approx_total, u.currency)}</span>
       </div>
-      <div class="chips">${chips}
-        <button class="chip ghost" data-new="${i}" data-match="${esc(match)}">Otra…</button>
+      <div class="chips">${suggested}${others}
+        <button class="chip ghost" data-new="${i}">Otra…</button>
       </div>
       <div class="new-cat-box" id="new-cat-${i}">
-        <input type="text" list="all-cats" id="new-cat-input-${i}" placeholder="Buscá o creá una categoría (Ej: Hogar/Muebles)" style="flex:1">
+        <input type="text" list="all-cats" id="new-cat-input-${i}" placeholder="Buscá o creá una categoría (ej: Hogar/Muebles)" style="flex:1">
         <button class="primary" data-save-new="${i}" data-match="${esc(match)}">Guardar</button>
       </div>
     </div>`;
-  }).join("") + `<datalist id="all-cats">${state.categories.map((c) => `<option value="${esc(c)}">`).join("")}</datalist>`;
+  };
+  const more = un.length > VISIBLE
+    ? `<button class="ghost" id="show-all-uncat" style="margin-top:12px">Ver los ${un.length - VISIBLE} restantes</button>` : "";
+  $("uncategorized").innerHTML = un.map(rowHtml).join("") + more
+    + `<datalist id="all-cats">${(App.state.categories || []).map((c) => `<option value="${esc(c)}">`).join("")}</datalist>`;
 }
 
-$("uncategorized").addEventListener("click", async (e) => {
+$("uncategorized").addEventListener("click", (e) => {
+  if (e.target.id === "show-all-uncat") {
+    document.querySelectorAll("#uncategorized .uncat-row.extra").forEach((el) => el.classList.remove("hidden"));
+    e.target.remove();
+    return;
+  }
   const chip = e.target.closest("button.chip:not(.ghost)");
-  if (chip) { await saveRule(chip.dataset.match, chip.dataset.cat, chip); return; }
+  if (chip) return saveRule(chip.dataset.match, chip.dataset.cat, chip.closest(".uncat-row"));
   const ghost = e.target.closest("button.chip.ghost");
   if (ghost) {
     $(`new-cat-${ghost.dataset.new}`).classList.add("open");
     $(`new-cat-input-${ghost.dataset.new}`).focus();
     return;
   }
-  const saveBtn = e.target.closest("button[data-save-new]");
-  if (saveBtn) {
-    const cat = $(`new-cat-input-${saveBtn.dataset.saveNew}`).value.trim();
-    if (cat) await saveRule(saveBtn.dataset.match, cat, saveBtn);
+  const save = e.target.closest("button[data-save-new]");
+  if (save) {
+    const val = $(`new-cat-input-${save.dataset.saveNew}`).value.trim();
+    if (val) saveRule(save.dataset.match, val, save.closest(".uncat-row"));
+  }
+});
+$("uncategorized").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.id?.startsWith("new-cat-input-")) {
+    e.preventDefault();
+    e.target.closest(".new-cat-box").querySelector("button[data-save-new]").click();
   }
 });
 
-async function saveRule(matchText, category, btn) {
-  btn.textContent = "Guardando…";
-  btn.disabled = true;
-  const res = await fetch("/api/rule", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ match: matchText, category }),
-  });
-  if (res.ok) await refresh();
-  else { btn.textContent = "Error"; btn.disabled = false; }
-}
-
-// ---------- Sankey + drill-through ----------
-function rgba(hex, a) {
-  const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r},${g},${b},${a})`;
-}
-
-async function renderSankey() {
-  const q = new URLSearchParams({ from: $("from").value || "", to: $("to").value || "", usd_rate: $("usd").value });
-  const data = await (await fetch(`/api/sankey?${q}`)).json();
-  state.sankeyNodes = data.nodes;
-
-  if (!data.links.length) {
-    $("sankey").innerHTML = '<p class="sankey-empty">Importá al menos un extracto para ver el flujo.</p>';
-    $("tiles").hidden = true;
-    return;
+async function saveRule(match, category, rowEl) {
+  // Optimista: la fila se va al instante y el conteo baja; el servidor
+  // confirma después y refresca los números. Un click no debe esperar nada.
+  if (rowEl) {
+    rowEl.classList.add("leaving");
+    setTimeout(() => rowEl.remove(), 180);
   }
-
-  // Plotly no borra el contenido previo del contenedor: si dejáramos el
-  // placeholder, el SVG queda desplazado, desborda la card e intercepta
-  // los clicks de las secciones de abajo.
-  if ($("sankey").querySelector(".sankey-empty")) $("sankey").innerHTML = "";
-
-  $("tiles").hidden = false;
-  $("t-income").textContent = fmt(data.totals.income);
-  $("t-expense").textContent = fmt(data.totals.expense);
-  const sv = $("t-savings");
-  sv.textContent = fmt(data.totals.savings);
-  sv.classList.toggle("pos", data.totals.savings >= 0);
-
-  $("usd-note").hidden = !data.usd_converted;
-  if (data.usd_converted) {
-    $("usd-note").textContent =
-      `Incluye U$S ${data.usd_converted.toLocaleString("es-AR")} convertidos a ARS a ${fmt(data.usd_rate)} por dólar.`;
+  const pill = $("uncat-count");
+  const left = Math.max(0, (parseInt(pill.textContent) || 1) - 1);
+  pill.textContent = left ? `${left} pendientes` : "";
+  try {
+    const res = await (await fetch("/api/rule", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ match, category }),
+    })).json();
+    applyState(res.state);
+    toast(`${match} → ${category}`, "Deshacer", undoRule);
+  } catch (err) {
+    toast("No se pudo guardar la regla");
+    loadState();
   }
-
-  const dark = isDark();
-  const css = getComputedStyle(document.documentElement);
-  const colors = data.nodes.map((n) => dark ? n.colorDark : n.colorLight);
-  const trace = {
-    type: "sankey",
-    // 'fixed' (nodos no arrastrables): con 'snap' el manejador de drag de
-    // Plotly se traga el click y plotly_click nunca dispara — sin eso no
-    // hay drill-through, que importa más que poder mover nodos.
-    arrangement: "fixed",
-    node: {
-      label: data.nodes.map((n) => n.label),
-      color: colors,
-      pad: 18, thickness: 14, line: { width: 0 },
-      hovertemplate: "%{label}<br>%{value} ARS<extra>click para detalle</extra>",
-    },
-    link: {
-      source: data.links.map((l) => l.source),
-      target: data.links.map((l) => l.target),
-      value: data.links.map((l) => l.value),
-      color: data.links.map((l) => rgba(colors[l.source], 0.30)),
-      hovertemplate: "%{source.label} → %{target.label}<br>%{value} ARS<extra></extra>",
-    },
-  };
-  const layout = {
-    font: { family: 'system-ui, -apple-system, "Segoe UI", sans-serif', size: 13,
-            color: css.getPropertyValue("--ink").trim() },
-    paper_bgcolor: "rgba(0,0,0,0)",
-    margin: { l: 8, r: 8, t: 8, b: 8 },
-    height: 520,
-    separators: ",.",
-  };
-  await Plotly.react($("sankey"), [trace], layout, { displayModeBar: false, responsive: true });
-
-  $("sankey").on("plotly_click", (ev) => {
-    const pt = ev.points && ev.points[0];
-    if (!pt || pt.source !== undefined) return;  // sólo nodos, no links
-    const node = state.sankeyNodes.find((n) => n.label === pt.label);
-    if (node && node.drillable) openDrill(node);
-  });
+}
+async function undoRule() {
+  const res = await fetch("/api/rule/undo", { method: "POST" });
+  if (!res.ok) return toast("No hay nada para deshacer");
+  const data = await res.json();
+  applyState(data.state);
+  toast("Listo, deshecho");
 }
 
-darkMq.addEventListener("change", () => renderSankey());
+// ---------------------------------------------------------------- TENDENCIAS
+function renderTendencias() {
+  const m = App.state.insights.monthly;
+  if (!m.length) { $("chart-monthly").innerHTML = '<p class="empty">Sin datos todavía.</p>'; return; }
+  // Los meses a los que les falta algún resumen no se comparan con el resto:
+  // un mes sin el extracto del sueldo parece un desastre y no lo es.
+  const full = m.filter((x) => x.complete);
+  const partial = m.filter((x) => !x.complete);
+  const ref = full.length ? full : m;
+  const best = ref.reduce((a, b) => (b.savings > a.savings ? b : a));
+  const worst = ref.reduce((a, b) => (b.savings < a.savings ? b : a));
+  const avgExp = ref.reduce((s, x) => s + x.expense, 0) / ref.length;
+  const avgSav = ref.reduce((s, x) => s + x.savings, 0) / ref.length;
+  const basis = full.length ? `sobre ${full.length} mes${full.length > 1 ? "es" : ""} completo${full.length > 1 ? "s" : ""}` : "datos parciales";
+  $("trend-tiles").innerHTML = tile("Meses con datos", String(m.length), "",
+      `${monthLabel(m[0].month)} → ${monthLabel(m[m.length - 1].month)}` + (partial.length ? ` · ${partial.length} incompleto(s)` : ""))
+    + tile("Gasto mensual promedio", money(avgExp), "", basis)
+    + tile("Ahorro mensual promedio", money(avgSav), avgSav >= 0 ? "pos" : "neg", basis)
+    + tile("Tu mejor mes", monthLabel(best.month), "pos", money(best.savings))
+    + tile("Tu peor mes", monthLabel(worst.month), worst.savings < 0 ? "neg" : "", money(worst.savings));
 
-async function openDrill(node) {
-  const q = new URLSearchParams({ node: node.label, from: $("from").value || "", to: $("to").value || "", usd_rate: $("usd").value });
-  const data = await (await fetch(`/api/drill?${q}`)).json();
+  $("trend-note").textContent = partial.length
+    ? `Los meses rayados (${partial.map((x) => monthLabel(x.month)).join(", ")}) tienen resúmenes sin importar: sus totales están incompletos y no entran en los promedios.`
+    : "";
+  const months = m.map((x) => monthLabel(x.month));
+  const green = isDark() ? "#0ca30c" : "#008300", red = isDark() ? "#e66767" : "#e34948";
+  // El rayado marca "falta información", no un valor distinto
+  const pattern = (rows) => ({ shape: rows.map((x) => (x.complete ? "" : "/")), fgopacity: 0.45, size: 6, solidity: 0.25 });
+  const partialNote = (x) => (x.complete ? "" : "<br><i>mes incompleto</i>");
+  Plotly.react($("chart-monthly"), [
+    { type: "bar", name: "Ingresos", x: months, y: m.map((x) => x.income),
+      marker: { color: green, line: { width: 0 }, pattern: pattern(m) },
+      customdata: m.map(partialNote), hovertemplate: "Ingresos<br><b>%{y:,.0f}</b>%{customdata}<extra>%{x}</extra>" },
+    { type: "bar", name: "Gastos", x: months, y: m.map((x) => x.expense),
+      marker: { color: red, line: { width: 0 }, pattern: pattern(m) },
+      customdata: m.map(partialNote), hovertemplate: "Gastos<br><b>%{y:,.0f}</b>%{customdata}<extra>%{x}</extra>" },
+  ], baseLayout({ barmode: "group", bargap: 0.28, bargroupgap: 0.12 }), PLOT_CFG);
+
+  Plotly.react($("chart-savings"), [{
+    type: "bar", x: months, y: m.map((x) => x.savings),
+    marker: { color: m.map((x) => (x.savings >= 0 ? green : red)), line: { width: 0 }, pattern: pattern(m) },
+    text: m.map((x) => money(x.savings) + (x.complete ? "" : " *")), textposition: "outside",
+    textfont: { color: cssVar("--ink-2"), size: 11 }, cliponaxis: false,
+    customdata: m.map(partialNote), hovertemplate: "<b>%{y:,.0f}</b>%{customdata}<extra>%{x}</extra>",
+  }], baseLayout({ margin: { l: 62, r: 16, t: 22, b: 40 } }), PLOT_CFG);
+
+  const cbm = App.state.insights.category_by_month;
+  if (!cbm.series.length) { $("chart-catmonth").innerHTML = '<p class="empty">Sin gastos categorizados en el período.</p>'; return; }
+  Plotly.react($("chart-catmonth"), cbm.series.map((s, i) => ({
+    type: "bar", name: s.name, x: cbm.months.map(monthLabel), y: s.values,
+    marker: { color: seriesColor(s.name, i), line: { width: 0 } },
+    hovertemplate: `${esc(s.name)}<br><b>%{y:,.0f}</b><extra>%{x}</extra>`,
+  })), baseLayout({ barmode: "stack", bargap: 0.3 }), PLOT_CFG);
+}
+
+// ---------------------------------------------------------------- CATEGORÍAS
+function renderCategorias() {
+  const ins = App.state.insights, cats = ins.categories;
+  $("cat-hint").textContent = cats.length
+    ? `${cats.length} categorías · ${money(ins.totals.expense)} en total` + (ins.totals.uncategorized > 0
+        ? ` · ${pct(ins.totals.uncategorized_share)} sin categorizar` : " · todo categorizado ✓")
+    : "Sin gastos en el período elegido.";
+  const max = Math.max(...cats.map((c) => c.total), 1);
+  $("cat-table").innerHTML = cats.length ? `<thead><tr><th>Categoría</th><th class="num">Total</th><th class="num">%</th>
+      <th class="num">Movs.</th><th class="num">Promedio</th></tr></thead><tbody>`
+    + cats.map((c) => `<tr>
+        <td class="bar-cell"><div class="bar-fill" style="width:${(c.total / max * 100).toFixed(1)}%;background:${seriesColor(c.top, 0)}"></div>
+          <span><span class="dot" style="background:${seriesColor(c.top, 0)}"></span>${esc(c.category)}</span></td>
+        <td class="num">${money(c.total)}</td><td class="num">${pct(c.share)}</td>
+        <td class="num">${c.n}</td><td class="num">${money(c.avg)}</td></tr>`).join("") + "</tbody>" : "";
+
+  const mom = ins.category_mom;
+  const rows = (mom.rows || []).filter((r) => r.current || r.previous);
+  $("mom-card").hidden = !rows.length;
+  $("mom-pill").textContent = mom.current_month ? `${monthLabel(mom.current_month)} vs ${monthLabel(mom.previous_month)}` : "";
+  $("mom-warn").textContent = mom.partial
+    ? `Ojo: a ${monthLabel(mom.current_month)} le faltan resúmenes, así que la comparación queda corta.` : "";
+  $("mom-table").innerHTML = rows.length ? `<thead><tr><th>Categoría</th><th class="num">${monthLabel(mom.previous_month)}</th>
+      <th class="num">${monthLabel(mom.current_month)}</th><th class="num">Cambio</th></tr></thead><tbody>`
+    + rows.map((r) => {
+        const dir = r.delta > 0 ? "up" : "down";
+        const arrow = r.delta > 0 ? "▲" : "▼";
+        return `<tr><td>${esc(r.category)}</td><td class="num">${money(r.previous)}</td><td class="num">${money(r.current)}</td>
+          <td class="num delta ${dir}">${arrow} ${money(Math.abs(r.delta))}${r.delta_pct !== null ? ` <span class="sub">(${pct(Math.abs(r.delta_pct))})</span>` : ""}</td></tr>`;
+      }).join("") + "</tbody>" : "";
+
+  $("big-table").innerHTML = ins.biggest.length ? `<thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th class="num">Monto</th></tr></thead><tbody>`
+    + ins.biggest.map((b) => `<tr><td>${esc(b.date)}</td>
+        <td>${esc(b.description)}${b.counterparty ? `<br><span class="sub">${esc(b.counterparty)}</span>` : ""}
+            <br><span class="sub">${esc(b.account)}</span></td>
+        <td>${esc(b.category || "Sin categorizar")}</td><td class="num">${money(b.amount)}</td></tr>`).join("") + "</tbody>"
+    : `<tbody><tr><td class="empty">Sin gastos en el período.</td></tr></tbody>`;
+
+  const merch = ins.merchants.slice(0, 12).reverse();
+  if (merch.length) {
+    Plotly.react($("chart-merchants"), [{
+      type: "bar", orientation: "h", x: merch.map((m) => m.total), y: merch.map((m) => m.merchant),
+      marker: { color: merch.map((m) => seriesColor((m.category || "").split("/")[0], 0)), line: { width: 0 } },
+      hovertemplate: "<b>%{y}</b><br>%{x:,.0f} ARS<extra></extra>",
+    }], baseLayout({ height: Math.max(240, merch.length * 26 + 60), margin: { l: 170, r: 24, t: 8, b: 34 },
+                     yaxis: { tickfont: { color: cssVar("--ink-2"), size: 11 }, gridcolor: "rgba(0,0,0,0)", automargin: true },
+                     xaxis: { gridcolor: cssVar("--line"), tickfont: { color: cssVar("--muted") }, tickformat: ",.3~s", zeroline: false } }), PLOT_CFG);
+  } else $("chart-merchants").innerHTML = "";
+  $("merch-table").innerHTML = ins.merchants.length ? `<thead><tr><th>Comercio</th><th>Categoría</th><th class="num">Veces</th>
+      <th class="num">Promedio</th><th class="num">Total</th></tr></thead><tbody>`
+    + ins.merchants.map((m) => `<tr><td>${esc(m.merchant)}</td><td class="sub">${esc(m.category || "—")}</td>
+        <td class="num">${m.n}</td><td class="num">${money(m.avg)}</td><td class="num">${money(m.total)}</td></tr>`).join("") + "</tbody>" : "";
+}
+
+// ---------------------------------------------------------------- RECURRENTES
+function renderRecurrentes() {
+  const rec = App.state.insights.recurring;
+  const fijos = rec.filter((r) => r.kind === "fijo");
+  const variables = rec.filter((r) => r.kind === "variable");
+  const monthlyTotal = rec.reduce((s, r) => s + r.monthly_cost, 0);
+  const fijosTotal = fijos.reduce((s, r) => s + r.monthly_cost, 0);
+  const subiendo = fijos.filter((r) => r.change_pct !== null && r.change_pct > 5);
+  $("rec-tiles").innerHTML = tile("Comprometido por mes", money(monthlyTotal), "", `${rec.length} comercios que se repiten`)
+    + tile("Al año", money(monthlyTotal * 12), "", "si todo sigue igual")
+    + (fijos.length ? tile("Cargos fijos", money(fijosTotal), "", `${fijos.length} suscripciones y abonos`) : "")
+    + (variables.length ? tile("Hábitos", money(monthlyTotal - fijosTotal), "", `${variables.length} comercios de importe variable`) : "")
+    + (subiendo.length ? tile("Aumentaron", String(subiendo.length), "neg", "más de 5% desde la primera vez") : "");
+
+  const row = (r) => {
+    const ch = r.change_pct;
+    const cell = ch === null ? '<span class="sub">—</span>'
+      : `<span class="delta ${ch > 0 ? "up" : "down"}">${ch > 0 ? "▲" : ch < 0 ? "▼" : ""} ${pct(Math.abs(ch))}</span>`;
+    const badge = r.kind === "fijo"
+      ? '<span class="pill">fijo</span>' : '<span class="pill">variable</span>';
+    return `<tr><td>${esc(r.merchant)} ${badge}</td><td class="sub">${esc(r.category || "—")}</td>
+      <td class="num">${r.months}</td><td class="num">${r.n}</td>
+      <td class="num">${money(r.avg_amount)}</td><td class="num">${money(r.monthly_cost)}</td>
+      <td class="num">${cell}</td><td class="sub">${esc(r.last_date)}</td></tr>`;
+  };
+  $("rec-table").innerHTML = rec.length ? `<thead><tr><th>Comercio</th><th>Categoría</th><th class="num">Meses</th>
+      <th class="num">Compras</th><th class="num">Importe típico</th><th class="num">Por mes</th>
+      <th class="num">Variación</th><th>Último</th></tr></thead><tbody>`
+    + [...fijos, ...variables].map(row).join("") + "</tbody>"
+    : `<tbody><tr><td class="empty">Todavía no aparece ningún gasto repetido. Hace falta ver el mismo
+         comercio en al menos dos meses distintos: importá otro resumen y van a salir solos.</td></tr></tbody>`;
+}
+
+// ---------------------------------------------------------------- MOVIMIENTOS
+function renderMovimientos() {
+  const catSel = $("tx-cat"), acctSel = $("tx-acct");
+  if (catSel.options.length <= 1) {
+    catSel.innerHTML = `<option value="">Todas las categorías</option><option value="__none__">Sin categorizar</option>`
+      + (App.state.categories || []).map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+    acctSel.innerHTML = `<option value="">Todas las cuentas</option>`
+      + App.state.accounts.map((a) => `<option value="${esc(a.label)}">${esc(a.label)}</option>`).join("");
+  }
+  fetchTransactions();
+}
+async function fetchTransactions() {
+  const p = periodParams();
+  if ($("tx-q").value.trim()) p.set("q", $("tx-q").value.trim());
+  if ($("tx-cat").value) p.set("category", $("tx-cat").value);
+  if ($("tx-acct").value) p.set("account", $("tx-acct").value);
+  const data = await (await fetch(`/api/transactions?${p}`)).json();
   const txs = data.transactions;
+  $("tx-count").textContent = txs.length
+    ? `${txs.length} movimiento${txs.length > 1 ? "s" : ""}${txs.length >= data.limit ? " (mostrando los más recientes)" : ""}`
+    : "Sin resultados para esos filtros.";
+  $("tx-table").innerHTML = txs.length ? `<thead><tr><th>Fecha</th><th>Descripción</th><th>Cuenta</th><th>Categoría</th><th class="num">Monto</th></tr></thead><tbody>`
+    + txs.map((t) => `<tr><td style="white-space:nowrap">${esc(t.date)}</td>
+        <td>${esc(t.description)}${t.counterparty ? `<br><span class="sub">${esc(t.counterparty)}</span>` : ""}</td>
+        <td class="sub">${esc(t.account_label)}</td><td class="sub">${esc(t.category || "—")}</td>
+        <td class="num" style="color:${Number(t.amount) < 0 ? "" : "var(--good)"}">${Number(t.amount) < 0 ? "" : "+"}${moneyCur(t.amount, t.currency)}</td></tr>`).join("") + "</tbody>" : "";
+}
+["tx-q"].forEach((id) => $(id).addEventListener("input", () => { clearTimeout(App.txTimer); App.txTimer = setTimeout(fetchTransactions, 220); }));
+["tx-cat", "tx-acct"].forEach((id) => $(id).addEventListener("change", fetchTransactions));
+$("tx-export").addEventListener("click", () => { window.location = `/api/export.csv?${periodParams()}`; });
 
-  $("drawer-dot").style.background = isDark() ? node.colorDark : node.colorLight;
+// ---------------------------------------------------------------- drill-through
+async function openDrill(node) {
+  const p = periodParams();
+  p.set("node", node.label);
   $("drawer-title").textContent = node.label;
-  const totalArs = txs.reduce((acc, t) => acc + Math.abs(Number(t.amount)) * (t.currency === "USD" ? Number($("usd").value) : 1), 0);
-  $("drawer-total").textContent = `${txs.length} movs · ${fmt(totalArs)}`;
-
-  $("drawer-body").innerHTML = txs.length
-    ? `<table><thead><tr><th>Fecha</th><th>Descripción</th><th class="num">Monto</th></tr></thead><tbody>`
-      + txs.map((t) => `<tr>
-          <td style="white-space:nowrap">${esc(t.date)}</td>
-          <td>${esc(t.description)}${t.counterparty ? `<br><small style="color:var(--muted)">${esc(t.counterparty)}</small>` : ""}
-              <br><small style="color:var(--muted)">${esc(t.account_label)}${t.category ? " · " + esc(t.category) : ""}</small></td>
-          <td class="num">${fmt2(Math.abs(t.amount), t.currency)}</td>
-        </tr>`).join("")
-      + "</tbody></table>"
-    : '<p class="empty" style="padding:20px 0">Este nodo es un agregado (saldo/ahorro) sin transacciones individuales.</p>';
-
+  $("drawer-dot").style.background = isDark() ? node.colorDark : node.colorLight;
+  $("drawer-body").innerHTML = '<p class="empty"><span class="spinner"></span> Cargando…</p>';
   $("overlay").classList.add("open");
   $("drawer").classList.add("open");
+  const data = await (await fetch(`/api/drill?${p}`)).json();
+  const txs = data.transactions || [];
+  const rate = Number($("usd").value) || 1;
+  const total = txs.reduce((a, t) => a + Math.abs(Number(t.amount)) * (t.currency === "USD" ? rate : 1), 0);
+  $("drawer-total").textContent = `${txs.length} movs · ${money(total)}`;
+  $("drawer-body").innerHTML = txs.length
+    ? `<table><thead><tr><th>Fecha</th><th>Descripción</th><th class="num">Monto</th></tr></thead><tbody>`
+      + txs.map((t) => `<tr><td style="white-space:nowrap">${esc(t.date)}</td>
+          <td>${esc(t.description)}${t.counterparty ? `<br><span class="sub">${esc(t.counterparty)}</span>` : ""}
+              <br><span class="sub">${esc(t.account_label)}${t.category ? " · " + esc(t.category) : ""}</span></td>
+          <td class="num">${moneyCur(t.amount, t.currency)}</td></tr>`).join("") + "</tbody></table>"
+    : '<p class="empty">Este nodo es un agregado (saldo o ahorro) y no tiene movimientos individuales.</p>';
 }
-
-function closeDrill() {
-  $("overlay").classList.remove("open");
-  $("drawer").classList.remove("open");
-}
+function closeDrill() { $("overlay").classList.remove("open"); $("drawer").classList.remove("open"); }
 $("overlay").addEventListener("click", closeDrill);
 $("drawer-close").addEventListener("click", closeDrill);
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDrill(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeDrill(); hideToast(); } });
 
-// ---------- Controles del período ----------
-for (const id of ["from", "to", "usd"]) $(id).addEventListener("change", renderSankey);
+// ---------------------------------------------------------------- período y tema
+let periodTimer = null;
+function onPeriodChange() {
+  clearTimeout(periodTimer);
+  periodTimer = setTimeout(async () => {
+    await fetch("/api/settings", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ period_from: $("from").value, period_to: $("to").value, usd_rate: $("usd").value }),
+    });
+    await loadState();
+    if (App.tab === "movimientos") fetchTransactions();
+  }, 260);
+}
+["from", "to", "usd"].forEach((id) => $(id).addEventListener("change", onPeriodChange));
+$("usd").addEventListener("input", onPeriodChange);
+darkMq.addEventListener("change", () => { App.lastSankeyKey = ""; renderTab(App.tab, true); });
 
-refresh();
+loadState();
 </script>
 </body>
 </html>

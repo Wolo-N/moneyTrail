@@ -42,6 +42,7 @@ def import_parsed(
         else:
             dup += 1
     conn.commit()
+    db.bump_version(conn)
     return new, dup
 
 

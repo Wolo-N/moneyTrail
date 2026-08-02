@@ -57,6 +57,8 @@ def reconcile(conn: sqlite3.Connection, window_days: int = 3) -> ReconcileResult
         used_ins.add(best["id"])
         new_links += 1
     conn.commit()
+    if new_links:
+        db.bump_version(conn)
 
     return ReconcileResult(
         new_links=new_links,

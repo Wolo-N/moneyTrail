@@ -2,86 +2,123 @@
 
 Rastreá a dónde va la plata que entra a tus cuentas.
 
-moneyTrail ingiere los PDFs de extractos bancarios y resúmenes de tarjeta, normaliza
-los movimientos en un modelo único, concilia las transferencias entre tus propias
-cuentas (para no contar la plata dos veces), categoriza los gastos y genera un
-**diagrama de Sankey** que muestra el flujo: ingresos → cuentas → categorías de gasto.
+moneyTrail lee los PDFs de tus resúmenes bancarios y de tarjeta, normaliza los
+movimientos, concilia las transferencias entre tus propias cuentas (para no
+contar la plata dos veces), aprende a categorizar tus gastos con un click y te
+muestra el flujo completo: **ingresos → cuentas → categorías**.
 
-```
-Sueldo ──────┐
-             ├──> Caja de ahorro ──> Tarjeta ──> Delivery / Suscripciones / ...
-Reintegros ──┘                  └──> Débito  ──> Supermercado / Transporte / ...
-```
+Todo corre en tu máquina. Los PDFs y la base de datos nunca salen de ahí.
 
-Formatos soportados hoy: **Banco Galicia** (caja de ahorro en pesos) y
-**Brubank** (resumen de tarjeta de crédito, ARS + USD). Agregar un banco es
-escribir un parser nuevo en `src/moneytrail/parsers/` y registrarlo.
+---
 
-## Modo aplicación (recomendado, sin terminal)
+## El ritual mensual (2 minutos)
 
-Requisito único: tener [Python 3.11+](https://www.python.org/downloads/) instalado
-(en Windows, marcá "Add Python to PATH" al instalarlo).
+La app te lo recuerda sola en el panel **"Tu próximo paso"**, así que no hace
+falta memorizar nada:
 
-1. Descargá o cloná este repo.
-2. Doble click en el lanzador de tu sistema:
-   - **Windows** → `MoneyTrail.bat`
-   - **macOS** → `MoneyTrail.command` (la primera vez: click derecho → Abrir)
-   - **Linux** → `MoneyTrail.sh`
-3. La primera vez prepara el entorno solo (1-2 minutos). Después se abre la app
-   en tu navegador: arrastrás los PDFs, categorizás lo que falte con un click y
-   generás el reporte. Todo corre en `127.0.0.1` — nada sale de tu máquina.
+1. **Soltá los PDFs.** Descargá del homebanking los resúmenes del mes (banco y
+   tarjetas) y arrastralos a la app. Podés soltar varios juntos y repetir
+   archivos sin miedo: nunca se duplica nada.
+2. **Categorizá lo que aparezca pendiente**, con un click. Cada elección queda
+   aprendida y no vuelve a preguntarte por ese comercio.
+3. **Mirá el flujo y las tendencias.** Listo.
 
-Para cerrar la app, cerrá la ventana de terminal que queda abierta de fondo.
+Si te olvidás de importar algo, la app te lo dice: sabe qué cuentas tenés, hasta
+qué mes llega cada una y cuáles te faltan.
 
-## Uso por línea de comandos
+## Instalación
 
-Instalación:
+Requisito único: [Python 3.11+](https://www.python.org/downloads/) (en Windows,
+marcá "Add Python to PATH" al instalarlo).
 
-```bash
-python3 -m venv .venv
-.venv/bin/pip install -e ".[dev]"
-```
+Doble click en el lanzador de tu sistema — la primera vez prepara el entorno solo
+(1-2 minutos) y después abre directo en el navegador:
 
-```bash
-# 1. Dejá tus PDFs en data/inbox/ e importalos (idempotente: re-importar no duplica)
-moneytrail import data/inbox/
+| Sistema | Lanzador |
+|---|---|
+| Windows | `MoneyTrail.bat` |
+| macOS | `MoneyTrail.command` (la primera vez: click derecho → Abrir) |
+| Linux | `MoneyTrail.sh` |
 
-# 2. Mirá qué hay cargado y qué falta
-moneytrail status
+> La carpeta del proyecto no puede tener espacios en la ruta: Python se rompe al
+> crear el entorno virtual. El lanzador lo detecta y te avisa.
 
-# 3. Revisá lo que quedó sin categorizar y agregá reglas a rules/categories.yaml
-moneytrail categorize --review
+## Qué te muestra
 
-# 4. Generá el reporte con el Sankey (el tipo de cambio aplica a los consumos en USD)
-moneytrail report --from 2026-04 --to 2026-06 --usd-rate 1405 --open
-```
+| Sección | Qué responde |
+|---|---|
+| **Resumen** | ¿A dónde fue la plata? Diagrama de flujo (Sankey) clickeable: tocás cualquier nodo y ves las transacciones exactas que lo componen. |
+| **Tendencias** | ¿Cómo vengo mes a mes? Ingresos vs gastos, resultado de cada mes y en qué categorías se va la plata a lo largo del tiempo. |
+| **Categorías** | ¿En qué gasto y qué cambió? Ranking con porcentajes, comparación contra el mes anterior, los gastos más grandes y los comercios donde más gastás. |
+| **Recurrentes** | ¿Cuánto tengo comprometido todos los meses? Detecta suscripciones y abonos (y sus aumentos silenciosos) y los separa de los hábitos como delivery o transporte. |
+| **Movimientos** | Buscador libre sobre todo, con filtros por categoría y cuenta, y exportación a CSV. |
 
-El reporte es un HTML auto-contenido (funciona offline) con el diagrama de flujo,
-gasto por categoría, movimientos sin categorizar y flujos internos sin conciliar.
-
-Cada import valida que los saldos del PDF cierren (saldo inicial + movimientos =
-saldo final, subtotales por tarjeta): si un banco cambia el formato, el import
-falla con detalle en vez de guardar datos incompletos.
+Un detalle que importa: los meses a los que les falta algún resumen aparecen
+**rayados** y quedan fuera de los promedios. Un mes sin el extracto donde entra
+el sueldo parece un desastre financiero y no lo es.
 
 ## Categorización
 
-Las reglas viven en [`rules/categories.yaml`](rules/categories.yaml): regex en
-orden, la primera que matchea gana. Cada regla puede asignar `category` (nivel
-`Top/Sub`) y/o redefinir `kind` (p. ej. marcar `TRANSF. CTAS PROPIAS` como flujo
-interno para que no cuente como gasto).
+- Un click en una categoría crea la regla y la aplica a todo el histórico.
+- La app **sugiere** (chip destacado con ★) cuando reconoce el comercio de antes
+  o cuando el movimiento parece una transferencia a una persona.
+- Si te equivocaste, **Deshacer** en el aviso que aparece abajo.
+- Si volvés a clasificar un comercio, tu última decisión gana.
 
-## Principios
+Las reglas que creás desde la app viven en `rules/learned.yaml` (podés editarlas
+a mano). Las curadas por vos, en [`rules/categories.yaml`](rules/categories.yaml):
+regex en orden, la primera que matchea gana, y pueden además redefinir el tipo de
+movimiento (por ejemplo marcar algo como transferencia interna para que no cuente
+como gasto).
 
-- **Local-first**: los PDFs y la base de datos nunca salen de tu máquina.
-  El directorio `data/` está fuera del control de versiones.
-- **Idempotente**: re-importar el mismo PDF (o extractos consolidados con
-  períodos solapados) no genera duplicados.
-- **Montos exactos**: `Decimal` en todo el pipeline, nunca floats.
+## Bancos soportados
 
-## Desarrollo
+| Banco | Producto | Parser |
+|---|---|---|
+| Banco Galicia | Caja de ahorro en pesos | `galicia_caja_ahorro` |
+| Brubank | Resumen de cuenta (ARS + USD, multi-subcuenta) | `brubank_cuenta` |
+| Brubank | Tarjeta de crédito (ARS + USD) | `brubank_tarjeta` |
+| American Express | Tarjeta corporativa | `amex_tarjeta` |
+
+Agregar un banco es escribir un parser en `src/moneytrail/parsers/` y
+registrarlo; el resto del pipeline no se toca.
+
+Cada import **valida que los saldos del PDF cierren** (saldo inicial +
+movimientos = saldo final, subtotales por tarjeta, totales declarados). Si un
+banco cambia el formato, el import falla con el detalle en vez de guardar datos
+incompletos en silencio.
+
+## Línea de comandos
+
+La app y la CLI comparten el mismo pipeline.
 
 ```bash
-.venv/bin/python -m pytest        # tests con fixtures sintéticas (sin datos reales)
+python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+
+.venv/bin/moneytrail gui                      # la app de escritorio
+.venv/bin/moneytrail import data/inbox/       # importar (idempotente)
+.venv/bin/moneytrail status                   # qué hay cargado y qué falta
+.venv/bin/moneytrail categorize --review      # revisar lo no categorizado
+.venv/bin/moneytrail report --from 2026-04 --to 2026-06 --usd-rate 1405 --open
 ```
 
-Arquitectura y decisiones de diseño: [PLAN.md](PLAN.md).
+## Cómo está hecho
+
+Pipeline local de seis etapas sobre SQLite: **ingesta → parseo → normalización →
+conciliación → categorización → reporte**. Arquitectura y decisiones de diseño
+en [PLAN.md](PLAN.md).
+
+Dos garantías que sostienen la experiencia:
+
+- **Nada se duplica.** Hash por archivo y por movimiento: re-importar un PDF, o
+  extractos consolidados con períodos solapados, es un no-op.
+- **Nada se traba.** Las lecturas caras se cachean contra una versión de datos
+  que sólo cambia al escribir, y guardar una categoría devuelve el estado nuevo
+  completo en un solo request. Un click responde en decenas de milisegundos.
+
+```bash
+.venv/bin/python -m pytest      # 101 tests, con fixtures sintéticas
+```
+
+Las fixtures de test son sintéticas: no hay datos personales en el repositorio,
+y `data/` está en `.gitignore` desde el primer commit.

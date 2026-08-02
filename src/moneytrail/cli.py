@@ -40,7 +40,7 @@ def import_cmd(
         }[r.status]
         typer.echo(line)
     if rules.exists():
-        updated = cat.apply_rules(conn, cat.load_rules(rules))
+        updated = cat.apply_rules(conn, cat.load_rules(rules.parent / "learned.yaml", rules))
         typer.echo(f"Categorización: {updated} movimientos actualizados")
     linked = rec.reconcile(conn)
     if linked.new_links:
@@ -96,7 +96,9 @@ def categorize(
 ):
     """Aplica las reglas de rules/categories.yaml."""
     conn = dbmod.connect(db)
-    updated = cat.apply_rules(conn, cat.load_rules(rules), only_uncategorized=not all_)
+    updated = cat.apply_rules(
+        conn, cat.load_rules(rules.parent / "learned.yaml", rules), only_uncategorized=not all_
+    )
     typer.echo(f"{updated} movimientos actualizados")
     if review:
         pending = cat.uncategorized_summary(conn)

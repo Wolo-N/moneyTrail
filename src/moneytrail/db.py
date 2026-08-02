@@ -44,11 +44,20 @@ CREATE TABLE IF NOT EXISTS tx (
     kind TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_tx_date ON tx(date);
+CREATE INDEX IF NOT EXISTS idx_tx_category ON tx(category);
+CREATE INDEX IF NOT EXISTS idx_tx_kind ON tx(kind);
+CREATE INDEX IF NOT EXISTS idx_tx_account ON tx(account_id);
 CREATE TABLE IF NOT EXISTS transfer_link (
     id INTEGER PRIMARY KEY,
     tx_out_id INTEGER NOT NULL UNIQUE REFERENCES tx(id),
     tx_in_id INTEGER NOT NULL UNIQUE REFERENCES tx(id),
     confidence REAL NOT NULL
+);
+-- Preferencias de la UI (tipo de cambio, último período elegido...) y el
+-- contador de versión de los datos, que invalida los cachés de lectura.
+CREATE TABLE IF NOT EXISTS meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
 );
 """
 
@@ -61,6 +70,29 @@ def connect(path: str | Path) -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)
     return conn
+
+
+def get_meta(conn: sqlite3.Connection, key: str, default: str = "") -> str:
+    row = conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row else default
+
+
+def set_meta(conn: sqlite3.Connection, key: str, value: str) -> None:
+    conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)", (key, value))
+    conn.commit()
+
+
+def data_version(conn: sqlite3.Connection) -> int:
+    """Versión de los datos: cambia con cada escritura. Las lecturas caras
+    (armado del Sankey, insights) se cachean contra este número, así navegar
+    entre meses o abrir el detalle no recalcula nada."""
+    return int(get_meta(conn, "data_version", "0"))
+
+
+def bump_version(conn: sqlite3.Connection) -> int:
+    version = data_version(conn) + 1
+    set_meta(conn, "data_version", str(version))
+    return version
 
 
 def get_or_create_account(conn: sqlite3.Connection, info: AccountInfo) -> int:

@@ -268,12 +268,44 @@ Cada fase termina con algo usable y testeado. Estimaciones en sesiones de trabaj
 - [x] Filtros `--from/--to` por mes.
 - **Criterio de salida**: el diagrama responde "¿a dónde se fue la plata este mes?" de un vistazo.
 
-### Fase 6 — Extensiones (backlog, según necesidad)
+### Fase 6 — App de escritorio (completada)
+- [x] Lanzadores de doble click por sistema operativo; cero terminal.
+- [x] UI local (Flask + HTML estático, sin build step) con drag & drop de PDFs.
+- [x] Sankey interactivo con drill-through: cada nodo abre las transacciones que lo componen.
+- [x] Categorización de un click, con sugerencia, aprendizaje persistente y deshacer.
+
+### Fase 7 — Profundidad de datos y ritual mensual (completada)
+- [x] Más parsers: Brubank cuenta (multi-subcuenta ARS/USD) y American Express.
+- [x] Evolución mensual: ingresos vs gastos, resultado por mes, categorías apiladas en el tiempo.
+- [x] Comparación contra el mes anterior por categoría (qué subió y qué bajó).
+- [x] Comercios agrupados ignorando números de referencia; ranking y totales.
+- [x] Detección de gastos recurrentes, separando cargos fijos (y sus aumentos) de hábitos.
+- [x] Buscador de movimientos con filtros y export CSV.
+- [x] Panel "Tu próximo paso": detecta resúmenes faltantes por cuenta y guía el ritual mensual.
+- [x] Cobertura por mes: los meses a los que les falta un extracto se marcan y se excluyen de promedios.
+- [x] Persistencia de preferencias (período y tipo de cambio) entre sesiones.
+
+#### Decisiones de performance (Fase 7)
+
+El objetivo explícito era que **tocar los inputs no trabe el proceso**. Tres medidas:
+
+1. **Un solo round-trip por acción.** `/api/state` devuelve estado, Sankey e
+   insights juntos; importar, guardar una regla o deshacerla ya devuelven el
+   estado nuevo. La UI nunca encadena tres requests para reflejar un click.
+2. **Caché invalidado por versión de datos.** `db.data_version()` sube sólo al
+   escribir; las lecturas caras (Sankey, insights) se cachean contra ese número.
+   Navegar meses o abrir el detalle de un nodo no recalcula nada.
+3. **UI optimista.** Al categorizar, la fila se va al instante y el contador
+   baja; el servidor confirma después. Medido en el flujo real: **~45 ms** por
+   click contra los ~1,5 s previos.
+
+Los tests de `test_cache.py` fijan estas garantías para que no se pierdan.
+
+### Fase 8 — Backlog
 - [ ] Más parsers (otros bancos/tarjetas que uses).
 - [ ] Sugerencia de categorías con LLM local/API con confirmación manual.
-- [ ] Evolución mensual (serie de tiempo por categoría, comparativa mes a mes).
-- [ ] Export CSV/Parquet para análisis ad-hoc.
-- [ ] Detección de suscripciones recurrentes y avisos de aumentos.
+- [ ] Presupuestos por categoría con alertas al superarlos.
+- [ ] Proyección de fin de mes según el ritmo de gasto.
 
 ## 5. Riesgos y mitigaciones
 
