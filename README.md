@@ -76,6 +76,7 @@ como gasto).
 | Banco | Producto | Parser |
 |---|---|---|
 | Banco Galicia | Caja de ahorro en pesos | `galicia_caja_ahorro` |
+| Banco Galicia | Tarjeta de crédito VISA (ARS + USD) | `galicia_visa` |
 | Brubank | Resumen de cuenta (ARS + USD, multi-subcuenta) | `brubank_cuenta` |
 | Brubank | Tarjeta de crédito (ARS + USD) | `brubank_tarjeta` |
 | American Express | Tarjeta corporativa | `amex_tarjeta` |
@@ -117,7 +118,7 @@ Dos garantías que sostienen la experiencia:
   completo en un solo request. Un click responde en decenas de milisegundos.
 
 ```bash
-.venv/bin/python -m pytest      # 101 tests, con fixtures sintéticas
+.venv/bin/python -m pytest      # 115 tests, con fixtures sintéticas
 ```
 
 Las fixtures de test son sintéticas: no hay datos personales en el repositorio,

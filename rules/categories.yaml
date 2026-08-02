@@ -40,8 +40,12 @@
   category: Suscripciones
 - match: "SOUTHERNMEAT|COTO|CARREFOUR|JUMBO|DISCO |DIA TIENDA"
   category: Comida/Supermercado
-- match: "THE ANGELS"
+- match: "THE ANGELS|KFC|MC ?DONALD|BURGER KING|STARBUCKS"
   category: Comida/Restaurantes
+- match: "PANADERIA|HELADOS|CONFITERIA"
+  category: Comida/Restaurantes
+- match: "AUSA|AUBASA|PEAJE|TELEPASE"
+  category: Transporte/Peajes
 - match: "LENTESFX|FARMACITY|FARMACIA|OPTICA"
   category: Salud
 - match: "MERCADO LIBRE|MERCADOLIBRE|MELI\\*"

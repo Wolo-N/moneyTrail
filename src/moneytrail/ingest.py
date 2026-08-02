@@ -29,6 +29,20 @@ def extract_pages(pdf_path: Path) -> list[str]:
         return [page.extract_text() or "" for page in pdf.pages]
 
 
+def extract_words(pdf_path: Path) -> list[list[dict]]:
+    """Palabras con coordenadas, por página.
+
+    Sólo la piden los parsers cuyo formato tiene columnas que el texto plano no
+    distingue (el resumen VISA de Galicia separa pesos y dólares por posición,
+    no por notación: sin las coordenadas, un consumo en dólares se leería como
+    pesos).
+    """
+    import pdfplumber
+
+    with pdfplumber.open(pdf_path) as pdf:
+        return [page.extract_words() for page in pdf.pages]
+
+
 def import_parsed(
     conn: sqlite3.Connection, stmt: ParsedStatement, file_hash: str, source: str
 ) -> tuple[int, int]:
@@ -54,7 +68,10 @@ def import_file(conn: sqlite3.Connection, pdf_path: Path) -> ImportResult:
         parser = find_parser(pages)
         if parser is None:
             return ImportResult(source, "no_parser")
-        stmts = parser.parse(pages)
+        if hasattr(parser, "parse_words"):
+            stmts = parser.parse_words(pages, extract_words(pdf_path))
+        else:
+            stmts = parser.parse(pages)
 
         # Un PDF casi siempre trae una sola cuenta (el hash del archivo ya la
         # identifica), pero el resumen de cuenta de Brubank trae varias
