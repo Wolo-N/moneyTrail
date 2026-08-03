@@ -20,6 +20,23 @@ class ImportResult:
     new_txs: int = 0
     dup_txs: int = 0
     error: str = ""
+    hint: str = ""  # qué se vio en el PDF, cuando no se reconoció el formato
+
+
+def fingerprint(pages: list[str]) -> str:
+    """Descripción corta de un PDF que ningún parser reconoció.
+
+    Sin esto, 'formato no soportado' es un callejón sin salida: con esto se ve
+    de qué banco y producto se trata y alcanza para pedir el soporte.
+    """
+    text = "\n".join(pages).strip()
+    if not text:
+        return (
+            "El PDF no tiene texto: probablemente sea un escaneo o una foto. "
+            "Descargá el resumen original desde el homebanking (no una impresión escaneada)."
+        )
+    lines = [ln.strip() for ln in "\n".join(pages[:1]).splitlines() if ln.strip()]
+    return "Empieza con: " + " · ".join(lines[:4])
 
 
 def extract_pages(pdf_path: Path) -> list[str]:
@@ -67,7 +84,7 @@ def import_file(conn: sqlite3.Connection, pdf_path: Path) -> ImportResult:
         pages = extract_pages(pdf_path)
         parser = find_parser(pages)
         if parser is None:
-            return ImportResult(source, "no_parser")
+            return ImportResult(source, "no_parser", hint=fingerprint(pages))
         if hasattr(parser, "parse_words"):
             stmts = parser.parse_words(pages, extract_words(pdf_path))
         else:

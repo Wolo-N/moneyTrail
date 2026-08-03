@@ -136,19 +136,59 @@ def recategorize(conn: sqlite3.Connection, rules: list[Rule]) -> int:
     return updated
 
 
-def uncategorized_summary(conn: sqlite3.Connection) -> list[dict]:
+def uncategorized_summary(conn: sqlite3.Connection, detail_limit: int = 12) -> list[dict]:
     """Movimientos sin categoría (excluyendo flujos internos), agrupados por
-    descripción, para decidir qué reglas agregar."""
+    descripción, para decidir qué reglas agregar.
+
+    Cada grupo trae además el detalle de sus movimientos —fecha, cuenta o
+    tarjeta e importe— porque para decidir una categoría hace falta saber de
+    dónde salió la plata, no sólo cuánto fue.
+
+    Nota: los resúmenes bancarios traen la fecha pero **no la hora** de la
+    operación, así que no hay hora para mostrar.
+    """
     rows = conn.execute(
-        """SELECT description, counterparty, currency, COUNT(*) AS n,
-                  SUM(CAST(amount AS REAL)) AS approx_total
-           FROM tx
-           WHERE category IS NULL AND kind NOT IN (?, ?)
-           GROUP BY description, counterparty, currency
-           ORDER BY ABS(SUM(CAST(amount AS REAL))) DESC""",
+        """SELECT tx.id, tx.date, tx.description, tx.counterparty, tx.currency, tx.amount,
+                  tx.detail, account.label AS account_label
+           FROM tx JOIN account ON account.id = tx.account_id
+           WHERE tx.category IS NULL AND tx.kind NOT IN (?, ?)
+           ORDER BY tx.date DESC, tx.id DESC""",
         (str(Kind.TRANSFER_INTERNAL), str(Kind.CARD_PAYMENT)),
     ).fetchall()
-    return [dict(r) for r in rows]
+
+    groups: dict[tuple, dict] = {}
+    for r in rows:
+        key = (r["description"], r["counterparty"], r["currency"])
+        group = groups.setdefault(
+            key,
+            {
+                "description": r["description"],
+                "counterparty": r["counterparty"],
+                "currency": r["currency"],
+                "n": 0,
+                "approx_total": 0.0,
+                "accounts": [],
+                "first_date": r["date"],
+                "last_date": r["date"],
+                "movements": [],
+            },
+        )
+        group["n"] += 1
+        group["approx_total"] += float(r["amount"])
+        group["first_date"] = min(group["first_date"], r["date"])
+        group["last_date"] = max(group["last_date"], r["date"])
+        # En los resúmenes de tarjeta 'detail' identifica cuál de las tarjetas
+        # de la cuenta se usó; en los bancarios guarda CBU y CUIT, que acá no
+        # aportan nada. Sólo se muestra el primero.
+        card = r["detail"] if (r["detail"] or "").startswith("Tarjeta ") else ""
+        account = f"{r['account_label']} · {card}" if card else r["account_label"]
+        if account not in group["accounts"]:
+            group["accounts"].append(account)
+        if len(group["movements"]) < detail_limit:
+            group["movements"].append(
+                {"id": r["id"], "date": r["date"], "amount": float(r["amount"]), "account": account}
+            )
+    return sorted(groups.values(), key=lambda g: -abs(g["approx_total"]))
 
 
 def uncategorized_expense_ratio(conn: sqlite3.Connection) -> tuple[Decimal, Decimal]:

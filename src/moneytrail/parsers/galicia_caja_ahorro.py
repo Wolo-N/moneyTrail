@@ -25,7 +25,7 @@ _PERIOD_RE = re.compile(r"(\d{2}/\d{2}/\d{4}) (\d{2}/\d{2}/\d{4})")
 _BALANCE_RE = re.compile(r"^\$([\d.]+,\d{2})$")
 _TOTAL_RE = re.compile(r"^Total \$ ([\d.]+,\d{2}) -\$ ([\d.]+,\d{2}) \$ (-?[\d.]+,\d{2})$")
 _JUNK_RES = [
-    re.compile(r"^Resumen de Caja de Ahorro en Pesos( Página \d+ / \d+)?$"),
+    re.compile(r"^Resumen de .+?( Página \d+ / \d+)?$"),
     re.compile(r"^\d+P$"),  # código de barras del pie, p. ej. 20260506049040385P
     re.compile(r"^Fecha Descripción Origen Crédito Débito Saldo$"),
 ]
@@ -37,11 +37,26 @@ def _parse_date(d: str) -> date:
     return datetime.strptime(d, "%d/%m/%y").date()
 
 
+# El título cambia según el producto ('Caja de Ahorro en Pesos', 'Cuenta
+# Corriente en Pesos', cuenta sueldo...) pero el layout es siempre el mismo.
+# Se detecta por estructura, no por el nombre del producto: así un producto
+# nuevo de Galicia entra solo, sin necesidad de un parser nuevo.
+_PRODUCT_RE = re.compile(r"^Resumen de (.+)$", re.MULTILINE)
+_TABLE_HEADER = "Fecha Descripción Origen Crédito Débito Saldo"
+
+
 class GaliciaCajaAhorroParser:
     name = "galicia_caja_ahorro"
 
     def detect(self, pages: list[str]) -> bool:
-        return bool(pages) and "Resumen de Caja de Ahorro en Pesos" in pages[0]
+        if not pages:
+            return False
+        first = pages[0]
+        return (
+            _PRODUCT_RE.search(first) is not None
+            and _TABLE_HEADER in first
+            and "Disponés de 30 días" in first  # sello de los resúmenes de Galicia
+        )
 
     def parse(self, pages: list[str]) -> list[ParsedStatement]:
         lines = [ln.strip() for page in pages for ln in page.splitlines() if ln.strip()]
@@ -91,9 +106,7 @@ class GaliciaCajaAhorroParser:
 
         return [
             ParsedStatement(
-                account=AccountInfo(
-                    bank="Banco Galicia", product="caja_ahorro", currency="ARS", label="Galicia Caja de Ahorro"
-                ),
+                account=self._account(pages[0]),
                 period_start=period_start,
                 period_end=period_end,
                 opening_balance=opening,
@@ -101,6 +114,27 @@ class GaliciaCajaAhorroParser:
                 movements=movements,
             )
         ]
+
+    @staticmethod
+    def _account(first_page: str) -> AccountInfo:
+        """Identidad de la cuenta a partir del producto del encabezado.
+
+        El sufijo de moneda se saca del nombre para que la etiqueta quede
+        estable: 'Caja de Ahorro en Pesos' y 'Caja de Ahorro en Dólares' son la
+        misma cuenta conceptual en distinta moneda, y además así 'Galicia Caja
+        de Ahorro' sigue siendo la misma etiqueta de siempre y el histórico ya
+        importado no se parte en dos cuentas.
+        """
+        match = _PRODUCT_RE.search(first_page)
+        raw = match[1].strip() if match else "Cuenta"
+        currency = "USD" if re.search(r"en D[oó]lares", raw, re.IGNORECASE) else "ARS"
+        name = re.sub(r"\s+en (Pesos|D[oó]lares)$", "", raw, flags=re.IGNORECASE).strip()
+        return AccountInfo(
+            bank="Banco Galicia",
+            product=re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_") or "cuenta",
+            currency=currency,
+            label=f"Galicia {name}",
+        )
 
     @staticmethod
     def _parse_period(lines: list[str]) -> tuple[date, date]:

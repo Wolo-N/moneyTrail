@@ -141,6 +141,11 @@
   .uncat-head .amt { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 0.88rem; color: var(--ink-2); }
   .new-cat-box { display: none; margin-top: 8px; gap: 8px; }
   .new-cat-box.open { display: flex; }
+  .uncat-sub { color: var(--muted); font-size: 0.78rem; margin: -3px 0 8px; }
+  .uncat-detail { margin: 0 0 9px; }
+  .uncat-detail summary { font-size: 0.78rem; color: var(--accent); }
+  .uncat-detail table { margin-top: 5px; max-width: 560px; }
+  .uncat-detail td { padding: 3px 10px 3px 0; border: none; font-size: 0.79rem; }
 
   .pill { font-size: 0.71rem; background: var(--surface-2); border-radius: 999px; padding: 2px 10px; color: var(--ink-2); font-weight: 500; }
   .pill.warn { background: var(--warn-bg); color: var(--warn); }
@@ -197,7 +202,7 @@
       <button data-tab="resumen" class="active">Resumen</button>
       <button data-tab="tendencias">Tendencias</button>
       <button data-tab="categorias">Categorías</button>
-      <button data-tab="recurrentes">Recurrentes</button>
+      <button data-tab="recurrentes">Suscripciones</button>
       <button data-tab="movimientos">Movimientos</button>
     </nav>
     <div class="spacer"></div>
@@ -304,9 +309,16 @@
 
   <!-- ============ RECURRENTES ============ -->
   <div class="tab hidden" id="tab-recurrentes">
-    <div class="tiles" id="rec-tiles"></div>
+    <div class="tiles" id="sub-tiles"></div>
     <section class="card">
-      <h2>Gastos que se repiten todos los meses</h2>
+      <h2>Tus suscripciones y servicios <span class="pill" id="sub-pill"></span></h2>
+      <p class="hint">Lo que se cobra solo todos los meses: streaming, software, abonos. Se detectan por el
+         comercio, por la categoría que les pusiste o porque el importe se repite fijo. Los marcados como
+         <strong>sin cargos recientes</strong> pueden estar dados de baja — o puede faltar importar ese resumen.</p>
+      <div class="tbl-wrap"><table id="sub-table"></table></div>
+    </section>
+    <section class="card">
+      <h2>Otros gastos que se repiten</h2>
       <p class="hint">Detectados solos: el mismo comercio aparece en dos meses distintos o más.
          Los <strong>fijos</strong> mantienen el importe (suscripciones, abonos, cocheras) y ahí la columna
          <strong>variación</strong> delata los aumentos que nadie mira; los <strong>variables</strong> son
@@ -488,7 +500,8 @@ async function importFiles(files) {
     ul.innerHTML = res.results.map((r) => {
       if (r.status === "imported") return `<li class="ok">✓ ${esc(r.source)}: ${r.new_txs} movimientos nuevos <span class="sub">(${esc(r.parser)})</span></li>`;
       if (r.status === "skipped_duplicate") return `<li class="dup">= ${esc(r.source)}: ya estaba importado</li>`;
-      if (r.status === "no_parser") return `<li class="warn">? ${esc(r.source)}: formato no soportado todavía</li>`;
+      if (r.status === "no_parser") return `<li class="warn">? ${esc(r.source)}: formato no reconocido.
+        ${esc(r.hint || "")}<br><span class="sub">El archivo quedó guardado en data/inbox/ — pasámelo y le agrego soporte.</span></li>`;
       return `<li class="err">✗ ${esc(r.source)}: ${esc(r.error)}</li>`;
     }).join("") + (res.new_links ? `<li class="ok">⇄ ${res.new_links} movimientos internos conciliados entre cuentas</li>` : "");
     applyState(res.state);
@@ -602,13 +615,23 @@ function renderUncategorized() {
       `<button class="chip ${extra || ""}" data-match="${esc(match)}" data-cat="${esc(c)}">${esc(c)}</button>`;
     const suggested = u.suggested ? chip(u.suggested, "suggested") : "";
     const others = top.filter((c) => c !== u.suggested).map((c) => chip(c)).join("");
+    // De dónde salió la plata y cuándo: sin eso no se puede decidir la categoría.
+    const cuentas = (u.accounts || []).join(" · ");
+    const cuando = u.first_date === u.last_date ? u.first_date : `${u.first_date} → ${u.last_date}`;
+    const detalle = (u.movements || []).length > 1
+      ? `<details class="uncat-detail"><summary>Ver los ${u.n} movimientos</summary><table>`
+        + u.movements.map((m) => `<tr><td>${esc(m.date)}</td><td class="sub">${esc(m.account)}</td>
+            <td class="num">${moneyCur(m.amount, u.currency)}</td></tr>`).join("")
+        + `</table></details>`
+      : "";
     return `<div class="uncat-row ${i >= VISIBLE ? "extra hidden" : ""}" data-row="${i}">
       <div class="uncat-head">
         <span class="desc">${esc(u.description)}</span>
         ${u.counterparty ? `<span class="meta">${esc(u.counterparty)}</span>` : ""}
-        <span class="meta">${u.n} mov${u.n > 1 ? "s" : ""}</span>
         <span class="amt">${moneyCur(u.approx_total, u.currency)}</span>
       </div>
+      <div class="uncat-sub">${esc(cuentas)} · ${esc(cuando)}${u.n > 1 ? ` · ${u.n} movimientos` : ""}</div>
+      ${detalle}
       <div class="chips">${suggested}${others}
         <button class="chip ghost" data-new="${i}">Otra…</button>
       </div>
@@ -792,17 +815,9 @@ function renderCategorias() {
 
 // ---------------------------------------------------------------- RECURRENTES
 function renderRecurrentes() {
+  renderSubscriptions();
   const rec = App.state.insights.recurring;
-  const fijos = rec.filter((r) => r.kind === "fijo");
   const variables = rec.filter((r) => r.kind === "variable");
-  const monthlyTotal = rec.reduce((s, r) => s + r.monthly_cost, 0);
-  const fijosTotal = fijos.reduce((s, r) => s + r.monthly_cost, 0);
-  const subiendo = fijos.filter((r) => r.change_pct !== null && r.change_pct > 5);
-  $("rec-tiles").innerHTML = tile("Comprometido por mes", money(monthlyTotal), "", `${rec.length} comercios que se repiten`)
-    + tile("Al año", money(monthlyTotal * 12), "", "si todo sigue igual")
-    + (fijos.length ? tile("Cargos fijos", money(fijosTotal), "", `${fijos.length} suscripciones y abonos`) : "")
-    + (variables.length ? tile("Hábitos", money(monthlyTotal - fijosTotal), "", `${variables.length} comercios de importe variable`) : "")
-    + (subiendo.length ? tile("Aumentaron", String(subiendo.length), "neg", "más de 5% desde la primera vez") : "");
 
   const row = (r) => {
     const ch = r.change_pct;
@@ -815,12 +830,42 @@ function renderRecurrentes() {
       <td class="num">${money(r.avg_amount)}</td><td class="num">${money(r.monthly_cost)}</td>
       <td class="num">${cell}</td><td class="sub">${esc(r.last_date)}</td></tr>`;
   };
-  $("rec-table").innerHTML = rec.length ? `<thead><tr><th>Comercio</th><th>Categoría</th><th class="num">Meses</th>
+  $("rec-table").innerHTML = variables.length ? `<thead><tr><th>Comercio</th><th>Categoría</th><th class="num">Meses</th>
       <th class="num">Compras</th><th class="num">Importe típico</th><th class="num">Por mes</th>
       <th class="num">Variación</th><th>Último</th></tr></thead><tbody>`
-    + [...fijos, ...variables].map(row).join("") + "</tbody>"
-    : `<tbody><tr><td class="empty">Todavía no aparece ningún gasto repetido. Hace falta ver el mismo
-         comercio en al menos dos meses distintos: importá otro resumen y van a salir solos.</td></tr></tbody>`;
+    + variables.map(row).join("") + "</tbody>"
+    : `<tbody><tr><td class="empty">Todavía no aparece ningún gasto repetido de importe variable. Hace falta
+         ver el mismo comercio en al menos dos meses distintos: importá otro resumen y van a salir solos.</td></tr></tbody>`;
+}
+
+function renderSubscriptions() {
+  const subs = App.state.insights.subscriptions || [];
+  const activas = subs.filter((s) => s.active);
+  const monthly = activas.reduce((s, x) => s + x.monthly_cost, 0);
+  const subiendo = activas.filter((s) => s.change_pct !== null && s.change_pct > 5);
+  $("sub-pill").textContent = subs.length ? `${activas.length} activas` : "";
+  $("sub-tiles").innerHTML = tile("Suscripciones por mes", money(monthly), "", `${activas.length} servicios activos`)
+    + tile("Al año", money(monthly * 12), "", "si todo sigue igual")
+    + (subs.length - activas.length ? tile("Sin cargos recientes", String(subs.length - activas.length), "", "¿las diste de baja?") : "")
+    + (subiendo.length ? tile("Aumentaron", String(subiendo.length), "neg", "más de 5% desde la primera vez") : "");
+
+  $("sub-table").innerHTML = subs.length ? `<thead><tr><th>Servicio</th><th>Categoría</th>
+      <th class="num">Último importe</th><th class="num">Por mes</th><th class="num">Al año</th>
+      <th class="num">Variación</th><th>Último cargo</th></tr></thead><tbody>`
+    + subs.map((s) => {
+        const ch = s.change_pct;
+        const cambio = ch === null ? '<span class="sub">—</span>'
+          : `<span class="delta ${ch > 0 ? "up" : "down"}">${ch > 0 ? "▲" : ch < 0 ? "▼" : ""} ${pct(Math.abs(ch))}</span>`;
+        const estado = s.active ? "" : ' <span class="pill">sin cargos recientes</span>';
+        return `<tr${s.active ? "" : ' style="opacity:.62"'}>
+          <td>${esc(s.merchant)}${estado}</td><td class="sub">${esc(s.category || "—")}</td>
+          <td class="num">${moneyCur(s.last_amount, s.currency)}</td>
+          <td class="num">${money(s.monthly_cost)}</td><td class="num">${money(s.yearly_cost)}</td>
+          <td class="num">${cambio}</td>
+          <td class="sub">${esc(s.last_date)}${s.months > 1 ? ` · ${s.months} meses` : ""}</td></tr>`;
+      }).join("") + "</tbody>"
+    : `<tbody><tr><td class="empty">Todavía no se detectó ninguna suscripción. Aparecen solas cuando
+         importás un resumen de tarjeta con cargos de streaming, software o abonos.</td></tr></tbody>`;
 }
 
 // ---------------------------------------------------------------- MOVIMIENTOS

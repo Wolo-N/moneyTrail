@@ -50,7 +50,7 @@ con espacios o acentos en la ruta: no afecta.
 | **Resumen** | ¿A dónde fue la plata? Diagrama de flujo (Sankey) clickeable: tocás cualquier nodo y ves las transacciones exactas que lo componen. |
 | **Tendencias** | ¿Cómo vengo mes a mes? Ingresos vs gastos, resultado de cada mes y en qué categorías se va la plata a lo largo del tiempo. |
 | **Categorías** | ¿En qué gasto y qué cambió? Ranking con porcentajes, comparación contra el mes anterior, los gastos más grandes y los comercios donde más gastás. |
-| **Recurrentes** | ¿Cuánto tengo comprometido todos los meses? Detecta suscripciones y abonos (y sus aumentos silenciosos) y los separa de los hábitos como delivery o transporte. |
+| **Suscripciones** | ¿Qué pago todos los meses? Streaming, software y abonos detectados solos, con su costo mensual y anual, los aumentos silenciosos, y cuáles no tienen cargos recientes (por si diste de baja). Abajo, los hábitos que se repiten como delivery o transporte. |
 | **Movimientos** | Buscador libre sobre todo, con filtros por categoría y cuenta, y exportación a CSV. |
 
 Un detalle que importa: los meses a los que les falta algún resumen aparecen
@@ -75,11 +75,17 @@ como gasto).
 
 | Banco | Producto | Parser |
 |---|---|---|
-| Banco Galicia | Caja de ahorro en pesos | `galicia_caja_ahorro` |
+| Banco Galicia | Cuentas (caja de ahorro, cuenta corriente, ARS + USD) | `galicia_caja_ahorro` |
 | Banco Galicia | Tarjeta de crédito VISA (ARS + USD) | `galicia_visa` |
 | Brubank | Resumen de cuenta (ARS + USD, multi-subcuenta) | `brubank_cuenta` |
 | Brubank | Tarjeta de crédito (ARS + USD) | `brubank_tarjeta` |
 | American Express | Tarjeta corporativa | `amex_tarjeta` |
+
+Los parsers reconocen los resúmenes por su **estructura**, no por el nombre del
+producto: una cuenta nueva del mismo banco entra sola, sin escribir código. Si
+aun así un PDF no se reconoce, la app te dice qué encontró adentro (y si es un
+escaneo sin texto) para que se pueda agregar el soporte; el archivo queda
+guardado en `data/inbox/`.
 
 Agregar un banco es escribir un parser en `src/moneytrail/parsers/` y
 registrarlo; el resto del pipeline no se toca.
@@ -118,7 +124,7 @@ Dos garantías que sostienen la experiencia:
   completo en un solo request. Un click responde en decenas de milisegundos.
 
 ```bash
-.venv/bin/python -m pytest      # 115 tests, con fixtures sintéticas
+.venv/bin/python -m pytest      # 144 tests, con fixtures sintéticas
 ```
 
 Las fixtures de test son sintéticas: no hay datos personales en el repositorio,

@@ -30,12 +30,30 @@ _REF_TOKEN_RE = re.compile(r"\b\w*\d{4,}\w*\b")
 _HAS_LETTER_RE = re.compile(r"[^\W\d_]", re.UNICODE)
 
 
+def _is_ref_code(segment: str) -> bool:
+    """¿Es un código de referencia y no parte del nombre del comercio?
+
+    Los pasarelas de pago cuelgan un identificador de la operación después de
+    un '*' ('AUDIBLE*D394Z77J3', 'AUDIBLE*GI2KN71A3'): cambia en cada cobro,
+    así que sin sacarlo el mismo servicio se cuenta como dos comercios
+    distintos. Se reconoce por mezclar letras con varios dígitos.
+    """
+    digits = sum(c.isdigit() for c in segment)
+    return len(segment) >= 5 and digits >= 2 and any(c.isalpha() for c in segment)
+
+
 def merchant_key(description: str, counterparty: str = "") -> str:
     """Nombre normalizado del comercio: agrupa 'RAPPI 624875624875', 'Rappi' y
     'RAPPI 707314707314' bajo la misma entidad."""
     base = (counterparty or "").strip() or (description or "").strip()
     cleaned = _REF_TOKEN_RE.sub(" ", base.upper())
-    tokens = [t for t in cleaned.split() if _HAS_LETTER_RE.search(t)]
+    tokens = []
+    for token in cleaned.split():
+        # Los segmentos separados por '*' se evalúan por separado: 'MERPAGO*BETTIGA'
+        # conserva las dos partes, 'AUDIBLE*GI2KN71A3' pierde sólo la referencia.
+        kept = [seg for seg in token.split("*") if seg and not _is_ref_code(seg)]
+        if kept and _HAS_LETTER_RE.search("".join(kept)):
+            tokens.append("*".join(kept))
     return " ".join(tokens).strip(" -·*") or base.upper() or "(sin descripción)"
 
 
@@ -120,6 +138,7 @@ def build_insights(
 
     monthly = _monthly_series(all_rows, usd_rate)
     coverage = month_coverage(conn)
+    recurring = _recurring(all_rows, usd_rate)
     cat_totals, cat_by_month, months_in_range = _category_stats(in_range, usd_rate)
     merchants = _merchant_stats(in_range, usd_rate)
 
@@ -161,7 +180,10 @@ def build_insights(
         "category_by_month": _stacked_series(cat_by_month, cat_totals, top_n),
         "category_mom": _mom_comparison(all_rows, months_in_range, usd_rate, coverage),
         "merchants": merchants[:20],
-        "recurring": _recurring(all_rows, usd_rate),
+        "recurring": recurring,
+        # Sobre toda la historia, no sólo el período: una suscripción cobrada
+        # el mes pasado se sigue pagando aunque no caiga en el rango elegido.
+        "subscriptions": subscriptions(conn, all_rows, usd_rate, recurring),
         "biggest": _biggest(in_range, usd_rate),
     }
 
@@ -378,7 +400,8 @@ def _recurring(rows: list[sqlite3.Row], usd_rate: Decimal, min_months: int = 2) 
     """
     buckets: dict[str, list[tuple[str, Decimal, str | None]]] = defaultdict(list)
     for r in rows:
-        if r["kind"] not in EXPENSE_KINDS:
+        # Sin impuestos: se repiten siempre y no son un gasto que se decida.
+        if r["kind"] not in EXPENSE_KINDS or r["kind"] == str(Kind.TAX):
             continue
         value = to_ars(db.amount(r), r["currency"], usd_rate)
         if value >= 0:
@@ -421,6 +444,103 @@ def _recurring(rows: list[sqlite3.Row], usd_rate: Decimal, min_months: int = 2) 
             }
         )
     return sorted(out, key=lambda e: -e["monthly_cost"])
+
+
+# Servicios que se cobran solos todos los meses. La lista cubre lo habitual;
+# lo que falte se detecta igual si el cargo es fijo y se repite, o si vos lo
+# categorizaste como 'Suscripciones'.
+_SUBSCRIPTION_RE = re.compile(
+    r"NETFLIX|DISNEY|PARAMOUNT|STAR\+|HBO|MAX\b|SPOTIFY|DEEZER|TIDAL|CRUNCHYROLL|MUBI|"
+    r"APPLE|ICLOUD|ITUNES|YOUTUBE|PRIME VIDEO|AMAZON|AUDIBLE|KINDLE|"
+    r"ANTHROPIC|CLAUDE|OPENAI|CHATGPT|GEMINI|COPILOT|GITHUB|NOTION|DROPBOX|GOOGLE ONE|"
+    r"ADOBE|CANVA|FIGMA|MICROSOFT|OFFICE 365|ZOOM|"
+    r"PLAYSTATION|XBOX|NINTENDO|STEAM|TWITCH|"
+    r"LINKEDIN|DUOLINGO|STRAVA|MEDIUM|SUBSTACK|PATREON|"
+    r"SMARTFIT|SPORTCLUB|GIMNASIO|MEGATLON",
+    re.IGNORECASE,
+)
+
+
+def subscriptions(
+    conn: sqlite3.Connection, rows: list[sqlite3.Row], usd_rate: Decimal, recurring: list[dict]
+) -> list[dict]:
+    """Lo que se paga todos los meses: streaming, software, abonos.
+
+    Se juntan tres señales, porque ninguna sola alcanza: el comercio está en la
+    lista conocida, vos lo categorizaste como 'Suscripciones', o el importe se
+    repite fijo mes a mes. Un servicio visto una sola vez también aparece — con
+    un mes importado, Disney+ figura una vez y sigue siendo una suscripción.
+    """
+    fixed = {r["merchant"] for r in recurring if r["kind"] == "fijo"}
+    buckets: dict[str, dict] = {}
+    latest = max((r["date"] for r in rows), default="")
+
+    for r in rows:
+        # Los impuestos (IVA, sellos, ingresos brutos) se repiten todos los
+        # meses pero no son un servicio que se pueda dar de baja: son la
+        # consecuencia de otros gastos, no una decisión propia.
+        if r["kind"] not in EXPENSE_KINDS or r["kind"] == str(Kind.TAX):
+            continue
+        raw = db.amount(r)
+        if raw >= 0:
+            continue
+        merchant = merchant_key(r["description"], r["counterparty"])
+        category = r["category"] or ""
+        is_sub = (
+            _SUBSCRIPTION_RE.search(f"{r['description']} {r['counterparty']}")
+            or category.startswith("Suscripciones")
+            or merchant in fixed
+        )
+        if not is_sub:
+            continue
+        entry = buckets.setdefault(
+            merchant,
+            {
+                "merchant": merchant, "category": category or None, "currency": r["currency"],
+                "amounts": [], "dates": [], "months": set(), "mixed_currency": False,
+            },
+        )
+        if entry["currency"] != r["currency"]:
+            entry["mixed_currency"] = True
+        entry["amounts"].append((r["date"], -raw, r["currency"]))
+        entry["dates"].append(r["date"])
+        entry["months"].add(r["date"][:7])
+        entry["category"] = entry["category"] or (category or None)
+
+    out = []
+    for entry in buckets.values():
+        entry["amounts"].sort()
+        months = max(len(entry["months"]), 1)
+        total_ars = sum(to_ars(a, c, usd_rate) for _, a, c in entry["amounts"])
+        last_date = max(entry["dates"])
+        first_amount, last_amount = entry["amounts"][0][1], entry["amounts"][-1][1]
+        # Un servicio sin cargos en el último mes y medio de datos puede estar
+        # dado de baja; se marca en vez de seguir sumándolo como si estuviera vivo.
+        active = _within_days(last_date, latest, 45)
+        out.append(
+            {
+                "merchant": entry["merchant"],
+                "category": entry["category"],
+                "currency": entry["currency"] if not entry["mixed_currency"] else "ARS",
+                "last_amount": float(last_amount),
+                "monthly_cost": float(round(total_ars / months, 2)),
+                "yearly_cost": float(round(total_ars / months * 12, 2)),
+                "months": len(entry["months"]),
+                "n": len(entry["amounts"]),
+                "last_date": last_date,
+                "active": active,
+                "change_pct": float(round((last_amount - first_amount) / first_amount * 100, 1))
+                if first_amount and len(entry["months"]) > 1
+                else None,
+            }
+        )
+    return sorted(out, key=lambda s: (not s["active"], -s["monthly_cost"]))
+
+
+def _within_days(day: str, reference: str, days: int) -> bool:
+    if not day or not reference:
+        return True
+    return (date.fromisoformat(reference) - date.fromisoformat(day)).days <= days
 
 
 def _biggest(rows: list[sqlite3.Row], usd_rate: Decimal, limit: int = 10) -> list[dict]:

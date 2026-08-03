@@ -186,3 +186,42 @@ def test_internal_flows_never_count(conn):
     ins = build_insights(conn)
     assert ins["totals"]["expense"] == 0, "mover plata entre cuentas propias no es gasto"
     assert ins["totals"]["income"] == 1000
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [
+        # Las pasarelas cuelgan un código distinto en cada cobro: es el mismo servicio
+        ("Audible*D394z77j3", "AUDIBLE*GI2KN71A3"),
+        ("RAPPI 624875624875", "RAPPI 707314707314"),
+    ],
+)
+def test_merchant_key_groups_reference_codes(a, b):
+    assert merchant_key(a) == merchant_key(b)
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("Audible*D394z77j3", "AUDIBLE"),
+        ("MERPAGO*BETTIGA", "MERPAGO*BETTIGA"),   # sin dígitos: es el nombre real
+        ("Payu*Ar*Uber", "PAYU*AR*UBER"),
+        ("Anthropic* Claude Sub", "ANTHROPIC CLAUDE SUB"),
+    ],
+)
+def test_merchant_key_keeps_real_names(raw, expected):
+    assert merchant_key(raw) == expected
+
+
+def test_taxes_are_not_recurring_expenses(conn):
+    """IVA y sellos vuelven todos los meses pero no son un gasto que se decida."""
+    movements = [
+        _mv("2026-05-01", "IVA", -100, Kind.TAX),
+        _mv("2026-06-01", "IVA", -100, Kind.TAX),
+        _mv("2026-05-02", "NETFLIX", -5000),
+        _mv("2026-06-02", "NETFLIX", -5000),
+    ]
+    import_parsed(conn, _stmt("C", movements), "h", "t.pdf")
+    ins = build_insights(conn)
+    assert [r["merchant"] for r in ins["recurring"]] == ["NETFLIX"]
+    assert [s["merchant"] for s in ins["subscriptions"]] == ["NETFLIX"]

@@ -59,3 +59,23 @@ def test_partial_reimport_only_adds_new_account(conn, fake_pdf, monkeypatch):
 
     labels = {r["label"] for r in conn.execute("SELECT DISTINCT label FROM account")}
     assert labels == {"Brubank Caja de ahorro (ARS)", "Brubank Caja de ahorro (USD)"}
+
+
+def test_unrecognized_format_explains_what_it_saw(tmp_path, monkeypatch, conn):
+    """'Formato no soportado' a secas es un callejón sin salida: hay que poder
+    ver de qué se trata para pedir el soporte."""
+    pdf = tmp_path / "raro.pdf"
+    pdf.write_bytes(b"x")
+    monkeypatch.setattr(ingest, "extract_pages", lambda p: ["Banco Desconocido S.A.\nResumen mensual\nCuenta 123"])
+    result = ingest.import_file(conn, pdf)
+    assert result.status == "no_parser"
+    assert "Banco Desconocido S.A." in result.hint
+
+
+def test_scanned_pdf_is_diagnosed_as_such(tmp_path, monkeypatch, conn):
+    pdf = tmp_path / "escaneado.pdf"
+    pdf.write_bytes(b"x")
+    monkeypatch.setattr(ingest, "extract_pages", lambda p: ["", ""])
+    result = ingest.import_file(conn, pdf)
+    assert result.status == "no_parser"
+    assert "no tiene texto" in result.hint
